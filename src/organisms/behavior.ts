@@ -55,7 +55,9 @@ export function senseAndDecide(
   climate: ClimateState,
 ): Decision {
   const t = org.genome.traits;
-  const vision = t.visionRadius * (1 - org.genome.traits.camouflage * 0) * (org.health);
+  // An organism's own camouflage does not reduce its vision. Camouflage affects how
+  // readily *other* organisms detect it (applied when target perception is modeled).
+  const vision = t.visionRadius * org.health;
   const fovRad = (t.fieldOfView * Math.PI) / 180;
 
   let nearestFoodId: number | null = null;
@@ -82,6 +84,10 @@ export function senseAndDecide(
     const dx = other.x - org.x;
     const dy = other.y - org.y;
     const dist = Math.hypot(dx, dy);
+    // Camouflage is target-side: a highly camouflaged organism must be closer before
+    // another organism can perceive and react to it.
+    const detectionRange = vision * (1 - other.genome.traits.camouflage * 0.6);
+    if (dist > detectionRange) return;
     if (dist >= nearestOrgDist) return;
     const angleTo = Math.atan2(dy, dx);
     if (Math.abs(angleDiff(angleTo, org.heading)) > fovRad / 2) return;

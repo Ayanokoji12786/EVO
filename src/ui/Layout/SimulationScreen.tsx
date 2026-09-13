@@ -48,6 +48,10 @@ export function SimulationScreen({ config, onExit }: { config: WorldConfig; onEx
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [config]);
 
+  useEffect(() => () => {
+    if (restoreSpeed.current) clearTimeout(restoreSpeed.current);
+  }, []);
+
   if (!controller) return null;
 
   const toggleGodMode = () => {

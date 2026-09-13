@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import type { SimulationController } from '../../state/simulationController';
 import { geneticDistance } from '../../genetics/genome';
 
@@ -10,14 +10,14 @@ export function TreeOfLife({ controller, onClose }: { controller: SimulationCont
   const [view, setView] = useState({ pan: 0, zoom: 1 });
   const drag = useRef({ active:false, x:0 });
   const tick = controller.world.tick;
-  const { branches, lanes } = useMemo(() => {
+  const { branches, lanes } = (() => {
     const ends:number[]=[]; const result:Branch[]=[];
     for (const s of [...controller.world.species.all()].sort((a,b)=>a.originTick-b.originTick)) {
       const to=s.extinctTick ?? tick; let lane=ends.findIndex((end)=>end<s.originTick-8); if(lane<0){lane=ends.length;ends.push(to);}else ends[lane]=to;
       result.push({id:s.id,name:s.name,from:s.originTick,to,extinct:s.extinctTick!==null,parent:s.parentSpeciesId,lane,generation:s.originGeneration,population:s.population,peak:s.peakPopulation});
     }
     return { branches:result, lanes:Math.max(1,ends.length) };
-  }, [controller.world.species.all(), tick]);
+  })();
   const events=controller.world.events.all().filter((e)=>/mass extinction|meteor|wildfire|plague/i.test(e.message));
   const w=1280, h=Math.max(560,lanes*30+130), max=Math.max(1,tick);
   const x=(t:number)=>100+(t/max)*(w-180)*view.zoom+view.pan;

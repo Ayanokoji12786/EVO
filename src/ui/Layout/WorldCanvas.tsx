@@ -14,6 +14,7 @@ export function WorldCanvas({ controller, onGodInvoke, onMeteorImpact }: { contr
     lastX: 0,
     lastY: 0,
   });
+  const [isDragging, setIsDragging] = useState(false);
   const lastRainStroke = useRef(0);
   const [cursor, setCursor] = useState<{ x: number; y: number } | null>(null);
   const rainEquipped = useSimStore((s) => s.pendingGodAction?.kind === 'rainfall');
@@ -40,10 +41,11 @@ export function WorldCanvas({ controller, onGodInvoke, onMeteorImpact }: { contr
     <div ref={containerRef} style={{ position: 'absolute', inset: 0 }}>
       <canvas
         ref={canvasRef}
-        style={{ width: '100%', height: '100%', display: 'block', cursor: rainEquipped ? 'none' : dragState.current.dragging ? 'grabbing' : 'grab' }}
+        style={{ width: '100%', height: '100%', display: 'block', cursor: rainEquipped ? 'none' : isDragging ? 'grabbing' : 'grab' }}
         onMouseDown={(e) => {
           if (rainEquipped && e.button === 0) { paintRain(e); lastRainStroke.current = performance.now(); return; }
           dragState.current = { dragging: true, moved: false, lastX: e.clientX, lastY: e.clientY };
+          setIsDragging(true);
         }}
         onContextMenu={(e) => {
           if (!useSimStore.getState().godMode || !onGodInvoke) return;
@@ -67,6 +69,7 @@ export function WorldCanvas({ controller, onGodInvoke, onMeteorImpact }: { contr
         onMouseUp={(e) => {
           const wasDrag = dragState.current.moved;
           dragState.current.dragging = false;
+          setIsDragging(false);
           if (wasDrag) return;
           const rect = (e.target as HTMLCanvasElement).getBoundingClientRect();
           const sx = e.clientX - rect.left;
@@ -82,6 +85,7 @@ export function WorldCanvas({ controller, onGodInvoke, onMeteorImpact }: { contr
         }}
         onMouseLeave={() => {
           dragState.current.dragging = false;
+          setIsDragging(false);
           setCursor(null);
         }}
         onWheel={(e) => {
