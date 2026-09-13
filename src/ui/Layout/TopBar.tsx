@@ -42,9 +42,9 @@ export function TopBar({
   }, [menuOpen]);
 
   return (
-    <div style={{ position: 'absolute', top: 16, left: 16, right: 16, zIndex: 20, display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+    <div className="topbar" style={{ position: 'absolute', top: 16, left: 16, right: 16, zIndex: 20, display: 'flex', alignItems: 'flex-start', gap: 12 }}>
       <div
-        className="glass scroll-thin"
+        className="glass scroll-thin topbar-command-deck"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -69,7 +69,7 @@ export function TopBar({
 
         <Divider />
 
-        <div style={{ display: 'flex', gap: 4, background: 'rgba(255,255,255,0.03)', borderRadius: 999, padding: 4, flexShrink: 0 }}>
+        <div className="time-controls" style={{ display: 'flex', gap: 4, padding: 4, flexShrink: 0 }}>
           <button className={`btn pill ${paused ? 'active' : ''}`} onClick={() => setPaused(!paused)} title="Pause / Play">
             {paused ? '▶' : '⏸'}
           </button>
@@ -178,7 +178,7 @@ export function TopBar({
 }
 
 function Divider() {
-  return <div style={{ width: 1, flexShrink: 0, alignSelf: 'stretch', background: 'var(--border-strong)' }} />;
+  return <div className="topbar-divider" style={{ width: 1, flexShrink: 0, alignSelf: 'stretch' }} />;
 }
 
 function Readout({ label, value }: { label: string; value: string | number }) {
@@ -193,22 +193,8 @@ function Readout({ label, value }: { label: string; value: string | number }) {
 function MenuItem({ icon, label, onClick, danger }: { icon: string; label: string; onClick: () => void; danger?: boolean }) {
   return (
     <button
+      className={`menu-item ${danger ? 'danger' : ''}`}
       onClick={onClick}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 10,
-        background: 'transparent',
-        border: 'none',
-        color: danger ? 'var(--danger)' : 'var(--text)',
-        fontSize: 13,
-        padding: '8px 10px',
-        borderRadius: 8,
-        textAlign: 'left',
-        width: '100%',
-      }}
-      onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
-      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
     >
       <span>{icon}</span>
       <span>{label}</span>

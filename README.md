@@ -19,6 +19,23 @@ npm run build    # type-check + production build
 npm run test     # run the vitest suite
 ```
 
+## Deploying for anyone to use
+
+This repository includes a GitHub Pages workflow. In the GitHub repository, open
+**Settings → Pages** and set **Build and deployment → Source** to **GitHub Actions**
+once. Every subsequent push to `main` builds and publishes the app automatically.
+
+For this repository, the public address will be:
+
+```
+https://ayanokoji12786.github.io/EVO/
+```
+
+Use the **Actions** tab to watch the first `Deploy EVO to GitHub Pages` run. GitHub will
+show the same URL in the successful deployment details. The workflow configures Vite's
+repository base path during the deploy build, so assets work at the Pages URL while
+local development continues to work at `http://localhost:5173/`.
+
 ## What's implemented
 
 - **World**: large procedurally generated terrain (grass/forest/desert/tundra/water/
