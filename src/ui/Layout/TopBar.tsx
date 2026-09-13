@@ -9,6 +9,7 @@ export function TopBar({
   onOpenExperiment,
   onOpenAbout,
   onOpenCinematic,
+  onGodMode,
   onExit,
 }: {
   onOpenTree: () => void;
@@ -16,6 +17,7 @@ export function TopBar({
   onOpenExperiment: () => void;
   onOpenAbout: () => void;
   onOpenCinematic: () => void;
+  onGodMode: () => void;
   onExit: () => void;
 }) {
   const speed = useSimStore((s) => s.speed);
@@ -25,7 +27,8 @@ export function TopBar({
   const seedDisplay = useSimStore((s) => s.seedDisplay);
   const setSpeed = useSimStore((s) => s.setSpeed);
   const setPaused = useSimStore((s) => s.setPaused);
-  const setGodMode = useSimStore((s) => s.setGodMode);
+  const evolutionVision = useSimStore((s) => s.evolutionVision);
+  const setEvolutionVision = useSimStore((s) => s.setEvolutionVision);
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -110,6 +113,14 @@ export function TopBar({
             }}
           >
             <MenuItem
+              icon="🧬"
+              label={evolutionVision ? 'Exit Evolution Vision' : 'Evolution Vision'}
+              onClick={() => {
+                setEvolutionVision(!evolutionVision);
+                setMenuOpen(false);
+              }}
+            />
+            <MenuItem
               icon="🌳"
               label="Tree of Life"
               onClick={() => {
@@ -157,10 +168,10 @@ export function TopBar({
 
       <button
         className={`btn divine godmode-toggle ${godMode ? 'active' : ''}`}
-        onClick={() => setGodMode(!godMode)}
+        onClick={onGodMode}
         style={{ padding: '0 22px', fontSize: 13, fontWeight: 700, letterSpacing: 1, flexShrink: 0, whiteSpace: 'nowrap' }}
       >
-        ⚡ GOD MODE
+        ⚡ {godMode ? 'GOD MODE' : 'ENTER GOD MODE'}
       </button>
     </div>
   );

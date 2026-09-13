@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { LineChart, Line, ResponsiveContainer, YAxis, XAxis, Tooltip } from 'recharts';
 import { useSimStore } from '../../state/simStore';
 import { TRAIT_SPECS } from '../../genetics/traits';
@@ -35,6 +35,15 @@ export function StatsPanel({ embedded = false }: { embedded?: boolean }) {
   const stats = useSimStore((s) => s.stats);
   const history = useSimStore((s) => s.statsHistory);
   const [selected, setSelected] = useState<string[]>(['stats:population', 'avg:maxSpeed', 'avg:visionRadius']);
+  const [askOpen, setAskOpen] = useState(false);
+  const explanation = useMemo(() => {
+    if (history.length < 2) return null;
+    const before = history[Math.max(0, history.length - 16)]; const after = history[history.length - 1];
+    const candidates = ['size', 'maxSpeed', 'visionRadius', 'metabolism'].map((key) => ({ key, before: before.avg[key] ?? 0, after: after.avg[key] ?? 0 }));
+    const change = candidates.map((item) => ({ ...item, pct: item.before ? ((item.after-item.before)/Math.abs(item.before))*100 : 0 })).sort((a,b)=>Math.abs(b.pct)-Math.abs(a.pct))[0];
+    const food = before.foodAbundance ? ((after.foodAbundance-before.foodAbundance)/before.foodAbundance)*100 : 0;
+    return { ...change, food, from: before.generation, to: after.generation };
+  }, [history]);
 
   function toggle(id: string) {
     setSelected((cur) => (cur.includes(id) ? cur.filter((k) => k !== id) : cur.length < 4 ? [...cur, id] : cur));
@@ -72,6 +81,8 @@ export function StatsPanel({ embedded = false }: { embedded?: boolean }) {
         <Stat label="Avg metabolism" value={stats?.avg.metabolism?.toFixed(2) ?? '—'} />
         <Stat label="Avg mutation rate" value={stats ? `${(stats.avg.mutationRate * 100).toFixed(1)}%` : '—'} />
       </div>
+      <button className="ask-universe" onClick={()=>setAskOpen(v=>!v)}>✦ WHY DID THIS HAPPEN?</button>
+      {askOpen && explanation && <div className="universe-answer"><b>WHAT THE RECORD SHOWS</b><p>Between generations {explanation.from.toLocaleString()}–{explanation.to.toLocaleString()}, mean {explanation.key.replace(/([A-Z])/g,' $1')} changed {explanation.pct>=0?'+':''}{explanation.pct.toFixed(1)}%.</p><p>Recorded food availability shifted {explanation.food>=0?'+':''}{explanation.food.toFixed(1)}% over the same interval. This is an evidence-based correlation from this world’s history, not a claimed single cause.</p><button className="btn" onClick={()=>setSelected(['stats:population',`avg:${explanation.key}`])}>SHOW EVIDENCE</button></div>}
 
       {trophic && (
         <div style={{ marginBottom: 16 }}>

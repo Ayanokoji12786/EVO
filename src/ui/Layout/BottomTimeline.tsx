@@ -7,6 +7,15 @@ export function BottomTimeline({ controller, onOpen }: { controller: SimulationC
   const firstTick = snapshots[0]?.tick ?? 0;
   const currentTick = controller.world.tick;
   const span = Math.max(1, currentTick - firstTick);
+  const events = useSimStore((s) => s.events).filter((event) => event.tick >= firstTick);
+  const marker = (category: string, message: string) => {
+    if (/drought/i.test(message)) return '▲';
+    if (/meteor/i.test(message)) return '☄';
+    if (category === 'evolutionary') return '🧬';
+    if (category === 'extinction' || /extinction/i.test(message)) return '☠';
+    if (/plague/i.test(message)) return '☣';
+    return '•';
+  };
 
   return (
     <button
@@ -25,7 +34,7 @@ export function BottomTimeline({ controller, onOpen }: { controller: SimulationC
       title="Open Time Machine"
     >
         <span style={{ fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>
-          Gen {stats?.generation ?? 0}
+          Gen 0
         </span>
         <div style={{ position: 'relative', flex: 1, height: 4, background: 'rgba(255,255,255,0.08)', borderRadius: 2 }}>
           <div
@@ -38,20 +47,20 @@ export function BottomTimeline({ controller, onOpen }: { controller: SimulationC
               opacity: 0.5,
             }}
           />
-          {snapshots.map((s) => (
+          {events.map((event) => (
             <div
-              key={s.tick}
-              title={`Generation ${s.generation}`}
+              key={event.id}
+              title={`${event.message} · Generation ${event.generation}`}
               style={{
                 position: 'absolute',
-                left: `${Math.min(100, ((s.tick - firstTick) / span) * 100)}%`,
-                top: -3,
-                width: 2,
-                height: 10,
-                background: 'rgba(255,255,255,0.3)',
-                borderRadius: 1,
+                left: `${Math.min(99, ((event.tick - firstTick) / span) * 100)}%`,
+                top: -17,
+                color: event.category === 'extinction' ? 'var(--danger)' : 'var(--accent)',
+                fontSize: 12,
+                textShadow: '0 0 8px currentColor',
+                transform: 'translateX(-50%)',
               }}
-            />
+            >{marker(event.category, event.message)}</div>
           ))}
           <div
             style={{
@@ -67,6 +76,9 @@ export function BottomTimeline({ controller, onOpen }: { controller: SimulationC
             }}
           />
         </div>
+        <span style={{ fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--text-dim)', whiteSpace: 'nowrap' }}>
+          Gen {stats?.generation ?? 0}
+        </span>
       <span style={{ fontSize: 10, color: 'var(--text-dim)', fontFamily: 'var(--mono)', whiteSpace: 'nowrap' }}>
         {snapshots.length} snapshots · ⏱
       </span>

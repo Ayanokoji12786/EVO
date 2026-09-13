@@ -14,6 +14,14 @@ export function TimeMachine({ controller, onClose }: { controller: SimulationCon
   const compareSnap = compareIndex !== null ? snapshots[compareIndex] : null;
 
   const worldSize = controller.world.config.worldSize;
+  const creatureGlyph = (snapshot: typeof snap) => {
+    const traits = snapshot?.sampleOrganisms[0]?.traits;
+    if (!traits) return '✦';
+    if ((traits.wingDevelopment ?? 0) > 0.6) return '🦋';
+    if (traits.diet > 0.65) return '🦂';
+    if (traits.energyStorage > 1.35) return '🪲';
+    return '🦠';
+  };
 
   const traitDeltas = useMemo(() => {
     if (!snap || !compareSnap) return [];
@@ -40,11 +48,12 @@ export function TimeMachine({ controller, onClose }: { controller: SimulationCon
           <div className="glass" style={{ padding: 12, flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <svg viewBox={`0 0 ${worldSize} ${worldSize}`} width="100%" height="100%" style={{ maxHeight: 420, background: '#080b10', borderRadius: 8 }}>
               {snap?.sampleOrganisms.map((o) => (
-                <circle key={o.id} cx={o.x} cy={o.y} r={Math.max(2, o.traits.size * 6)} fill={`hsl(${hashHue(o.speciesId)},65%,55%)`} opacity={0.85} />
+                <g key={o.id}><circle cx={o.x} cy={o.y} r={Math.max(2, o.traits.size * 6)} fill={`hsl(${hashHue(o.speciesId)},65%,55%)`} opacity={0.85} /><circle cx={o.x + o.traits.size * 2} cy={o.y - o.traits.size} r={Math.max(1, o.traits.visionRadius / 90)} fill="rgba(235,255,255,.7)" /></g>
               ))}
             </svg>
           </div>
           <div>
+            <div style={{ fontSize: 10, color: 'var(--accent)', letterSpacing: 1, marginBottom: 6 }}>RECONSTRUCTED SNAPSHOT · GENERATION {snap?.generation}</div>
             <input
               type="range"
               min={0}
@@ -60,7 +69,7 @@ export function TimeMachine({ controller, onClose }: { controller: SimulationCon
         </div>
 
         <div className="glass scroll-thin" style={{ width: 340, padding: 16, overflowY: 'auto' }}>
-          <h3 style={{ marginTop: 0, fontSize: 14 }}>Compare to</h3>
+          <h3 style={{ marginTop: 0, fontSize: 14 }}>WHAT CHANGED?</h3>
           <select
             value={compareIndex ?? ''}
             onChange={(e) => setCompareIndex(e.target.value === '' ? null : Number(e.target.value))}
@@ -80,6 +89,7 @@ export function TimeMachine({ controller, onClose }: { controller: SimulationCon
                 <span>Population {compareSnap.stats.population} → {snap.stats.population}</span>
                 <span>Species {compareSnap.stats.speciesCount} → {snap.stats.speciesCount}</span>
               </div>
+              <div className="time-creature-compare"><div><span>GEN {compareSnap.generation}</span><b>{creatureGlyph(compareSnap)}</b></div><i>→</i><div><span>GEN {snap.generation}</span><b>{creatureGlyph(snap)}</b></div></div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {traitDeltas.slice(0, 10).map((d) => (
                   <div key={d.key} style={{ fontSize: 11 }}>

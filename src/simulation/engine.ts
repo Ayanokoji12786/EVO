@@ -116,6 +116,7 @@ export function stepWorld(state: WorldState, dt: number) {
   const season = seasonalFactor(state.climate);
   const seasonGrowth = 0.5 + season; // winter ~0.5x, summer ~1.5x
   stepFoodGrowth(state.food, state.terrain, state.config.worldSize, state.config.foodAbundance, state.climate.rainfall, seasonGrowth, state.laws, state.rng, dt);
+  stepRainfallEcosystems(state, dt, seasonGrowth);
 
   decayCarcasses(state.food, state.tick);
   stepStorms(state, dt);
@@ -318,6 +319,26 @@ function decisionLocalTemp(state: WorldState, org: Organism): number {
 
 function stepStorms(state: WorldState, dt: number) {
   state.activeStorms = state.activeStorms.filter((s) => (s.ttl -= dt) > 0);
+}
+
+/** Local rain creates food where it falls. This feeds directly into the regular food hash,
+ * so organisms perceive and migrate toward real food rather than a scripted target. */
+function stepRainfallEcosystems(state: WorldState, dt: number, seasonGrowth: number) {
+  for (const storm of state.activeStorms) {
+    const attempts = Math.max(1, Math.round(storm.intensity * 2 * dt * seasonGrowth));
+    for (let i = 0; i < attempts; i++) {
+      const angle = state.rng.range(0, Math.PI * 2);
+      const distance = Math.sqrt(state.rng.next()) * storm.radius;
+      const x = Math.max(0, Math.min(state.config.worldSize, storm.x + Math.cos(angle) * distance));
+      const y = Math.max(0, Math.min(state.config.worldSize, storm.y + Math.sin(angle) * distance));
+      // Avoid a pathological pile-up but deliberately permit a lusher patch than normal.
+      let nearby = 0;
+      state.food.hash.queryRadius(x, y, 24, () => nearby++);
+      if (nearby >= 6) continue;
+      const item = { id: state.food.nextId++, x, y, energy: 18 + storm.intensity * 10, maxEnergy: 18 + storm.intensity * 10, kind: 'plant' as const, growth: 1 };
+      state.food.items.set(item.id, item);
+    }
+  }
 }
 
 function stepDisease(state: WorldState, living: Organism[], dt: number) {

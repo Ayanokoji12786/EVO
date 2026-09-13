@@ -6,7 +6,8 @@ export function CreatureInspector({ controller }: { controller: SimulationContro
   const inspector = useSimStore((s) => s.inspector);
   const followId = useSimStore((s) => s.followId);
   const godMode = useSimStore((s) => s.godMode);
-  const [expanded, setExpanded] = useState(false);
+  const setXrayGene = useSimStore((s) => s.setXrayGene);
+  const [expanded, setExpanded] = useState(true);
 
   if (!inspector) return null;
 
@@ -25,8 +26,8 @@ export function CreatureInspector({ controller }: { controller: SimulationContro
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
         <div>
-          <div style={{ fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--text-dim)' }}>Creature</div>
-          <h3 style={{ margin: 0, fontSize: 16 }}>{inspector.name}</h3>
+          <div style={{ fontSize: 9, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--text-dim)' }}>Alien life scan · lock acquired</div>
+          <h3 style={{ margin: 0, fontSize: 16, letterSpacing: 1 }}>{inspector.name}</h3>
         </div>
         <button className="btn pill" onClick={() => controller.select(null)}>
           ✕
@@ -37,7 +38,7 @@ export function CreatureInspector({ controller }: { controller: SimulationContro
           Died at age {inspector.age}. Cause: {inspector.causeOfDeath}.
         </div>
       )}
-      <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 2 }}>{inspector.speciesName}</div>
+      <div style={{ fontSize: 11, color: 'var(--accent)', marginTop: 2, textTransform: 'uppercase', letterSpacing: 1 }}>Species: {inspector.speciesName}</div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, margin: '14px 0' }}>
         <MiniStat label="Gen" value={inspector.generation} />
@@ -86,14 +87,9 @@ export function CreatureInspector({ controller }: { controller: SimulationContro
             <Row label="Kills / Escapes" value={`${inspector.kills} / ${inspector.escapes}`} />
           </Section>
 
-          <Section title="Genome">
-            {Object.entries(inspector.traits).map(([key, value]) => (
-              <Row
-                key={key}
-                label={key}
-                value={typeof value === 'number' ? value.toFixed(key === 'colorHue' || key === 'visionRadius' || key === 'fieldOfView' ? 0 : 3) : String(value)}
-                highlight={inspector.mutatedFromParent.includes(key)}
-              />
+          <Section title="Genome · hover for X-ray">
+            {['maxSpeed', 'visionRadius', 'metabolism', 'aggression', 'tempToleranceRange', 'size', 'energyStorage', 'camouflage', 'diet', 'wingDevelopment'].filter((key) => inspector.traits[key] !== undefined).map((key) => (
+              <GenomeBar key={key} label={key} value={inspector.traits[key]} mutated={inspector.mutatedFromParent.includes(key)} onHover={setXrayGene} />
             ))}
           </Section>
 
@@ -147,6 +143,12 @@ export function CreatureInspector({ controller }: { controller: SimulationContro
       )}
     </div>
   );
+}
+
+const GENOME_RANGE: Record<string, [number, number]> = { maxSpeed: [.3, 3.2], visionRadius: [20, 260], metabolism: [.5, 2.6], aggression: [0, 1], tempToleranceRange: [.15, 1.4], size: [.4, 2.2], energyStorage: [.5, 1.8], camouflage: [0, 1], diet: [0, 1], wingDevelopment: [0, 1] };
+function GenomeBar({ label, value, mutated, onHover }: { label: string; value: number; mutated: boolean; onHover: (gene: string | null) => void }) {
+  const [min, max] = GENOME_RANGE[label] ?? [0, 1]; const fraction = Math.max(0, Math.min(1, (value - min) / (max - min)));
+  return <div className="genome-bar" onMouseEnter={() => onHover(label)} onMouseLeave={() => onHover(null)}><span>{label.replace(/([A-Z])/g, ' $1')}</span><div><i style={{ width: `${fraction * 100}%` }} /></div><b>{value.toFixed(2)}</b>{mutated && <em>▲</em>}</div>;
 }
 
 function MiniStat({ label, value }: { label: string; value: string | number }) {

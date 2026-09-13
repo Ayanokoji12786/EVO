@@ -1,343 +1,87 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import type { SimulationController } from '../../state/simulationController';
 import { useSimStore, type PendingGodAction } from '../../state/simStore';
 import type { TerrainType } from '../../simulation/types';
-import type { EvolutionaryPressureGoal } from '../../god/godActions';
 
-const TABS = ['Weather', 'Terraform', 'Resources', 'Genetics', 'Disasters', 'Plague', 'Create Life', 'Pressure', 'Laws'] as const;
-type Tab = (typeof TABS)[number];
+type Category = 'weather' | 'life' | 'evolution' | 'destruction' | 'terraform' | 'disease' | 'predators' | 'laws';
 
-const TERRAIN_OPTIONS: { type: TerrainType; icon: string }[] = [
-  { type: 'grass', icon: '🌱' },
-  { type: 'forest', icon: '🌲' },
-  { type: 'desert', icon: '🏜' },
-  { type: 'tundra', icon: '❄️' },
-  { type: 'water', icon: '🌊' },
-  { type: 'mountain', icon: '⛰' },
-  { type: 'fertile', icon: '🟫' },
-  { type: 'toxic', icon: '☠️' },
+const ROOT_ACTIONS: { id: Category; icon: string; label: string; hint: string }[] = [
+  { id: 'weather', icon: '🌧', label: 'WEATHER', hint: 'Command the sky' },
+  { id: 'life', icon: '🌱', label: 'LIFE', hint: 'Seed new life' },
+  { id: 'evolution', icon: '🧬', label: 'EVOLUTION', hint: 'Rewrite possibility' },
+  { id: 'destruction', icon: '🔥', label: 'DESTRUCTION', hint: 'Unmake the world' },
+  { id: 'terraform', icon: '🌍', label: 'TERRAFORM', hint: 'Shape the land' },
+  { id: 'disease', icon: '🦠', label: 'DISEASE', hint: 'Release a plague' },
+  { id: 'predators', icon: '🐺', label: 'PREDATORS', hint: 'Create a hunter' },
+  { id: 'laws', icon: '⚙', label: 'LAWS OF NATURE', hint: 'Alter the rules' },
 ];
 
-export function GodPanel({ controller }: { controller: SimulationController }) {
-  const [tab, setTab] = useState<Tab>('Weather');
-  const pending = useSimStore((s) => s.pendingGodAction);
-  const setPending = useSimStore((s) => s.setPendingGodAction);
-  const divineInterventions = useSimStore((s) => s.divineInterventions);
-  const naturalGenerations = useSimStore((s) => s.naturalGenerations);
-  const interferedGenerations = useSimStore((s) => s.interferedGenerations);
-  const overlays = useSimStore((s) => s.overlays);
-  const setOverlay = useSimStore((s) => s.setOverlay);
-  const selectedId = useSimStore((s) => s.selectedId);
+const WEATHER = [
+  ['rain', '🌧', 'RAIN'], ['storm', '⛈', 'STORM'], ['drought', '☀', 'DROUGHT'],
+  ['snow', '❄', 'SNOW'], ['heat', '🔥', 'HEAT WAVE'], ['ice', '🧊', 'ICE AGE'],
+] as const;
 
-  const arm = (action: PendingGodAction) => setPending(pending?.kind === action.kind ? null : action);
+export function GodPanel({ controller, anchor, onClose }: { controller: SimulationController; anchor: { x: number; y: number }; onClose: () => void }) {
+  const [layer, setLayer] = useState<Category | null>(null);
+  const setPending = useSimStore((s) => s.setPendingGodAction);
+  const stats = useSimStore((s) => s.stats);
+  const seed = useSimStore((s) => s.seedDisplay);
+
+  useEffect(() => {
+    const close = (event: KeyboardEvent) => event.key === 'Escape' && onClose();
+    window.addEventListener('keydown', close);
+    return () => window.removeEventListener('keydown', close);
+  }, [onClose]);
+
+  const choose = (id: Category) => {
+    if (id === 'weather') return setLayer('weather');
+    if (id === 'disease') {
+      controller.god.createPlague(controller.world, { transmissionRate: 0.55, mortality: 0.32, incubationPeriod: 10, recoveryChance: 0.4, mutationRate: 0.02 });
+      return onClose();
+    }
+    const armed: Partial<Record<Category, PendingGodAction>> = {
+      destruction: { kind: 'meteor', radius: 120 },
+      terraform: { kind: 'terraform', terrainType: 'fertile' as TerrainType, radius: 70 },
+      life: { kind: 'placeCreature', traits: { size: 0.9, maxSpeed: 1.3, visionRadius: 90, aggression: 0.2 } },
+      predators: { kind: 'introducePredator' },
+    };
+    if (armed[id]) setPending(armed[id]);
+    if (id === 'evolution') setPending({ kind: 'mutate' });
+    if (id === 'laws') controller.god.setLaw(controller.world, 'plantGrowthRate', Math.min(3, controller.world.laws.plantGrowthRate + 0.25));
+    onClose();
+  };
+
+  const weather = (kind: (typeof WEATHER)[number][0]) => {
+    if (kind === 'rain') setPending({ kind: 'rainfall', radius: 100, intensity: 0.78, duration: 900 });
+    if (kind === 'storm') { controller.god.setRainfall(controller.world, Math.min(2.5, controller.world.climate.rainfall + 0.85)); controller.god.triggerFoodBoom(controller.world, 260); }
+    if (kind === 'drought') controller.god.triggerDrought(controller.world, 0.65);
+    if (kind === 'snow') controller.god.setTemperature(controller.world, Math.max(-1, controller.world.climate.baseTemperature - 0.25));
+    if (kind === 'heat') controller.god.triggerHeatWave(controller.world, 0.5);
+    if (kind === 'ice') controller.god.triggerIceAge(controller.world, 0.65);
+    onClose();
+  };
+
+  const entries = layer === 'weather' ? WEATHER.map(([id, icon, label]) => ({ id, icon, label })) : ROOT_ACTIONS;
+  const radius = layer === 'weather' ? 144 : 178;
+  const safeX = Math.max(210, Math.min(window.innerWidth - 210, anchor.x));
+  const safeY = Math.max(210, Math.min(window.innerHeight - 210, anchor.y));
 
   return (
-    <div
-      className="hud-panel scroll-thin"
-      style={{ position: 'absolute', top: 92, left: 16, width: 320, maxHeight: 'calc(100vh - 200px)', overflowY: 'auto', padding: 16, zIndex: 10 }}
-    >
-      <div style={{ color: 'var(--divine)', fontSize: 11, letterSpacing: 1, marginBottom: 4 }}>YOU ARE NOW INTERFERING WITH NATURAL SELECTION</div>
-      <div style={{ display: 'flex', gap: 12, fontSize: 10, color: 'var(--text-dim)', marginBottom: 12, fontFamily: 'var(--mono)' }}>
-        <span>DIVINE {divineInterventions}</span>
-        <span>NATURAL GEN {naturalGenerations}</span>
-        <span>INTERFERED GEN {interferedGenerations}</span>
-      </div>
-
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 14 }}>
-        {TABS.map((t) => (
-          <button key={t} className={`btn ${tab === t ? 'active' : ''}`} style={{ padding: '4px 8px', fontSize: 10 }} onClick={() => setTab(t)}>
-            {t}
-          </button>
-        ))}
-      </div>
-
-      {pending && (
-        <div style={{ background: 'var(--divine-dim)', border: '1px solid var(--divine)', borderRadius: 8, padding: 8, fontSize: 11, marginBottom: 10 }}>
-          Click the world to place: <strong>{pending.kind}</strong>
+    <div className="god-radial-backdrop" onMouseDown={onClose}>
+      <div className="god-radial" style={{ left: safeX, top: safeY }} onMouseDown={(event) => event.stopPropagation()}>
+        <div className="god-radial-center">
+          <span>{layer === 'weather' ? '🌦' : '✦'}</span>
+          <strong>{layer === 'weather' ? 'WEATHER' : 'DIVINE WILL'}</strong>
+          <small>{layer === 'weather' ? 'CHOOSE AN OMEN' : 'RIGHT-CLICK TO COMMAND'}</small>
         </div>
-      )}
-
-      {tab === 'Weather' && (
-        <>
-          <Slider label="Rainfall" min={0} max={2.5} step={0.05} value={controller.world.climate.rainfall} onChange={(v) => controller.god.setRainfall(controller.world, v)} />
-          <Slider
-            label="Base temperature"
-            min={-1}
-            max={1}
-            step={0.05}
-            value={controller.world.climate.baseTemperature}
-            onChange={(v) => controller.god.setTemperature(controller.world, v)}
-          />
-          <Row2>
-            <button className="btn" onClick={() => controller.god.triggerDrought(controller.world)}>
-              🌵 DROUGHT
-            </button>
-            <button className="btn" onClick={() => controller.god.triggerFoodBoom(controller.world)}>
-              🌾 FOOD BOOM
-            </button>
-            <button className="btn" onClick={() => controller.god.triggerIceAge(controller.world)}>
-              ❄️ ICE AGE
-            </button>
-            <button className="btn" onClick={() => controller.god.triggerHeatWave(controller.world)}>
-              ☀️ HEAT WAVE
-            </button>
-            <button className="btn" onClick={() => controller.god.triggerDarkAge(controller.world)}>
-              🌑 DARK AGE
-            </button>
-          </Row2>
-        </>
-      )}
-
-      {tab === 'Terraform' && (
-        <>
-          <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 6 }}>Select a terrain, then click the world to paint (radius 60).</div>
-          <Row2>
-            {TERRAIN_OPTIONS.map((t) => (
-              <button
-                key={t.type}
-                className={`btn ${pending?.kind === 'terraform' && pending.terrainType === t.type ? 'active' : ''}`}
-                onClick={() => arm({ kind: 'terraform', terrainType: t.type, radius: 60 })}
-              >
-                {t.icon} {t.type}
-              </button>
-            ))}
-          </Row2>
-        </>
-      )}
-
-      {tab === 'Resources' && (
-        <>
-          <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 8 }}>
-            Food currently on the map: {controller.world.food.items.size}
-          </div>
-          <Row2>
-            <button
-              className="btn"
-              onClick={() => {
-                controller.world.food.hardShellUnlocked = !controller.world.food.hardShellUnlocked;
-              }}
-            >
-              🥥 Toggle Hard-Shell Food
-            </button>
-            <button className="btn" onClick={() => controller.god.triggerFoodBoom(controller.world, 200)}>
-              🌱 Fertile Burst
-            </button>
-          </Row2>
-        </>
-      )}
-
-      {tab === 'Genetics' && (
-        <>
-          <Slider
-            label="Mutation rate multiplier"
-            min={0}
-            max={6}
-            step={0.1}
-            value={controller.world.mutationSettings.mutationRateMultiplier}
-            onChange={(v) => controller.god.setMutationRateMultiplier(controller.world, v)}
-          />
-          <div style={{ fontSize: 11, color: 'var(--text-dim)', margin: '10px 0 6px' }}>Unlock new possible mutations</div>
-          <Row2>
-            {['flight', 'venom', 'armor', 'nightVision', 'aquaticAdaptation', 'packBehavior', 'diseaseResistance'].map((gene) => (
-              <button
-                key={gene}
-                className={`btn ${controller.world.unlockedGenes.has(gene) ? 'active' : ''}`}
-                onClick={() => controller.god.unlockGene(controller.world, gene)}
-              >
-                🔓 {gene}
-              </button>
-            ))}
-          </Row2>
-        </>
-      )}
-
-      {tab === 'Disasters' && (
-        <Row2>
-          <button className={`btn ${pending?.kind === 'lightning' ? 'active' : ''}`} onClick={() => arm({ kind: 'lightning' })}>
-            ⚡ Lightning
-          </button>
-          <button className={`btn ${pending?.kind === 'meteor' ? 'active' : ''}`} onClick={() => arm({ kind: 'meteor', radius: 120 })}>
-            ☄️ Meteor
-          </button>
-          <button className={`btn ${pending?.kind === 'volcano' ? 'active' : ''}`} onClick={() => arm({ kind: 'volcano' })}>
-            🌋 Volcano
-          </button>
-          <button className={`btn ${pending?.kind === 'flood' ? 'active' : ''}`} onClick={() => arm({ kind: 'flood', radius: 150 })}>
-            🌊 Flood
-          </button>
-          <button className={`btn ${pending?.kind === 'wildfire' ? 'active' : ''}`} onClick={() => arm({ kind: 'wildfire', radius: 100 })}>
-            🔥 Wildfire
-          </button>
-        </Row2>
-      )}
-
-      {tab === 'Plague' && <PlaguePanel controller={controller} />}
-
-      {tab === 'Create Life' && (
-        <CreateLifePanel
-          armed={pending?.kind === 'placeCreature'}
-          onArm={(traits) => arm({ kind: 'placeCreature', traits })}
-          onIntroducePredator={() => arm({ kind: 'introducePredator' })}
-          predatorArmed={pending?.kind === 'introducePredator'}
-        />
-      )}
-
-      {tab === 'Pressure' && (
-        <>
-          <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 8 }}>
-            Shifts conditions likely to favor a trait. Evolution decides the rest.
-          </div>
-          <Row2>
-            {(['speed', 'smallSize', 'largeSize', 'camouflage', 'efficiency', 'coldResistance', 'intelligence'] as EvolutionaryPressureGoal[]).map((g) => (
-              <button key={g} className="btn" onClick={() => controller.god.applyEvolutionaryPressure(controller.world, g)}>
-                🎯 Favor {g}
-              </button>
-            ))}
-          </Row2>
-        </>
-      )}
-
-      {tab === 'Laws' && (
-        <>
-          {(
-            [
-              ['movementEnergyCost', 0, 3],
-              ['visionEnergyCost', 0, 3],
-              ['foodEnergyGain', 0.2, 3],
-              ['agingRate', 0.2, 3],
-              ['reproductionCostMultiplier', 0.2, 3],
-              ['predationEffectiveness', 0, 3],
-              ['plantGrowthRate', 0, 3],
-            ] as const
-          ).map(([key, min, max]) => (
-            <Slider
-              key={key}
-              label={key}
-              min={min}
-              max={max}
-              step={0.05}
-              value={controller.world.laws[key]}
-              onChange={(v) => controller.god.setLaw(controller.world, key, v)}
-            />
-          ))}
-        </>
-      )}
-
-      <div style={{ marginTop: 16, borderTop: '1px solid var(--border)', paddingTop: 12 }}>
-        <div style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--text-dim)', marginBottom: 6 }}>God's-Eye Overlays</div>
-        <Row2>
-          <button className={`btn ${overlays.vision ? 'active' : ''}`} onClick={() => setOverlay('vision', !overlays.vision)}>
-            👁️ Vision
-          </button>
-          <button className={`btn ${overlays.species ? 'active' : ''}`} onClick={() => setOverlay('species', !overlays.species)}>
-            🧬 Species
-          </button>
-          <button className={`btn ${overlays.genetics ? 'active' : ''}`} onClick={() => setOverlay('genetics', !overlays.genetics)}>
-            🧪 Genetics
-          </button>
-          <button className={`btn ${overlays.energy ? 'active' : ''}`} onClick={() => setOverlay('energy', !overlays.energy)}>
-            🔋 Energy
-          </button>
-          <button
-            className={`btn ${overlays.ancestry !== null ? 'active' : ''}`}
-            disabled={selectedId === null}
-            onClick={() => setOverlay('ancestry', overlays.ancestry !== null ? null : selectedId)}
-          >
-            🌳 Ancestry
-          </button>
-        </Row2>
+        {entries.map((item, index) => {
+          const angle = -Math.PI / 2 + (Math.PI * 2 * index) / entries.length;
+          const x = Math.cos(angle) * radius;
+          const y = Math.sin(angle) * radius;
+          return <button key={item.id} className="god-radial-action" style={{ transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))` }} onMouseEnter={() => layer === null && item.id === 'weather' && setLayer('weather')} onClick={() => layer === 'weather' ? weather(item.id as (typeof WEATHER)[number][0]) : choose(item.id as Category)} title={'hint' in item ? item.hint : item.label}><span className="god-radial-icon">{item.icon}</span><span>{item.label}</span></button>;
+        })}
+        <div className="god-radial-status">WORLD {seed || '7F3A'} · GENERATION {(stats?.generation ?? 0).toLocaleString()}</div>
       </div>
     </div>
-  );
-}
-
-function PlaguePanel({ controller }: { controller: SimulationController }) {
-  const [transmissionRate, setTransmissionRate] = useState(0.5);
-  const [mortality, setMortality] = useState(0.3);
-  const [incubationPeriod, setIncubationPeriod] = useState(10);
-  const [recoveryChance, setRecoveryChance] = useState(0.4);
-
-  return (
-    <>
-      <Slider label="Transmission rate" min={0} max={1} step={0.05} value={transmissionRate} onChange={setTransmissionRate} />
-      <Slider label="Mortality" min={0} max={1} step={0.05} value={mortality} onChange={setMortality} />
-      <Slider label="Incubation period" min={1} max={40} step={1} value={incubationPeriod} onChange={setIncubationPeriod} />
-      <Slider label="Recovery chance" min={0} max={1} step={0.05} value={recoveryChance} onChange={setRecoveryChance} />
-      <button
-        className="btn danger"
-        style={{ width: '100%', marginTop: 8 }}
-        onClick={() =>
-          controller.god.createPlague(controller.world, { transmissionRate, mortality, incubationPeriod, recoveryChance, mutationRate: 0.02 })
-        }
-      >
-        🦠 RELEASE
-      </button>
-    </>
-  );
-}
-
-function CreateLifePanel({
-  armed,
-  onArm,
-  onIntroducePredator,
-  predatorArmed,
-}: {
-  armed: boolean;
-  onArm: (traits: Partial<Record<string, number>>) => void;
-  onIntroducePredator: () => void;
-  predatorArmed: boolean;
-}) {
-  const [size, setSize] = useState(1);
-  const [speed, setSpeed] = useState(1);
-  const [vision, setVision] = useState(100);
-  const [aggression, setAggression] = useState(0.3);
-
-  return (
-    <>
-      <Slider label="Size" min={0.4} max={2.2} step={0.05} value={size} onChange={setSize} />
-      <Slider label="Speed" min={0.3} max={3.2} step={0.05} value={speed} onChange={setSpeed} />
-      <Slider label="Vision" min={20} max={260} step={5} value={vision} onChange={setVision} />
-      <Slider label="Aggression" min={0} max={1} step={0.05} value={aggression} onChange={setAggression} />
-      <button
-        className={`btn divine ${armed ? 'active' : ''}`}
-        style={{ width: '100%', marginTop: 8 }}
-        onClick={() => onArm({ size, maxSpeed: speed, visionRadius: vision, aggression })}
-      >
-        🧬 PLACE CREATURE
-      </button>
-      <button className={`btn ${predatorArmed ? 'active' : ''}`} style={{ width: '100%', marginTop: 8 }} onClick={onIntroducePredator}>
-        🐺 Introduce Predator
-      </button>
-      <div style={{ fontSize: 10, color: 'var(--text-dim)', marginTop: 6 }}>
-        Max stats everywhere isn't automatically best — energy cost scales with size, speed and vision.
-      </div>
-    </>
-  );
-}
-
-function Row2({ children }: { children: ReactNode }) {
-  return <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 6 }}>{children}</div>;
-}
-
-function Slider({
-  label,
-  min,
-  max,
-  step,
-  value,
-  onChange,
-}: {
-  label: string;
-  min: number;
-  max: number;
-  step: number;
-  value: number;
-  onChange: (v: number) => void;
-}) {
-  return (
-    <label className="field">
-      {label} <span className="value">{value.toFixed(2)}</span>
-      <input type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} />
-    </label>
   );
 }

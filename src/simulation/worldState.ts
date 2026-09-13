@@ -49,7 +49,7 @@ export interface WorldState {
   speedMultiplier: number;
   unlockedGenes: Set<string>;
   overlays: OverlayState;
-  activeStorms: Array<{ x: number; y: number; radius: number; ttl: number }>;
+  activeStorms: Array<{ x: number; y: number; radius: number; ttl: number; intensity: number }>;
   activeVolcanoes: Array<{ x: number; y: number; nextEruption: number }>;
   activeFires: Array<{ x: number; y: number; intensity: number }>;
 }

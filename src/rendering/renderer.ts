@@ -4,15 +4,23 @@ import { worldToScreen } from './camera';
 import { TerrainTexture } from './terrainTexture';
 import { sunlightFactor } from '../environment/climate';
 import { geneticDistance } from '../genetics/genome';
-import { drawCreatureSprite, paletteFor } from './creatureSprite';
+import { drawCreatureSprite } from './creatureSprite';
 
 export interface RenderOptions {
   selectedId: number | null;
   ancestryDescendantIds: Set<number> | null;
+  xrayGene: string | null;
+  evolutionVision: boolean;
 }
 
 function hashHue(n: number): number {
   return (n * 137.508) % 360;
+}
+
+function genomeHue(org: import('../simulation/types').Organism): number {
+  const t = org.genome.traits;
+  // A continuous fingerprint: nearby genomes stay nearby in hue, while drift visibly moves a lineage.
+  return (t.size * 53 + t.maxSpeed * 79 + (t.visionRadius / 260) * 137 + t.metabolism * 47 + t.aggression * 101 + t.diet * 173 + (t.wingDevelopment ?? 0) * 211) % 360;
 }
 
 const FOOD_COLORS: Record<string, string> = {
@@ -64,13 +72,17 @@ export function drawFrame(
     const [sx, sy] = worldToScreen(camera, org.x, org.y);
     if (sx < -30 || sy < -30 || sx > viewportW + 30 || sy > viewportH + 30) continue;
 
-    const speciesHue = hashHue(org.speciesId);
-    const heightPx = Math.max(4, org.genome.traits.size * 13 * camera.zoom);
+    const speciesHue = options.evolutionVision ? genomeHue(org) : hashHue(org.speciesId);
+    // Slightly exaggerated biological silhouettes keep phenotype legible at ecosystem scale.
+    const heightPx = Math.max(7, org.genome.traits.size * 21 * camera.zoom);
     const energyFrac = Math.max(0, Math.min(1, org.energy / org.maxEnergy));
 
     let haloHue: number | null = null;
     let haloAlpha = 0;
-    if (overlays.species) {
+    if (options.evolutionVision) {
+      haloHue = speciesHue;
+      haloAlpha = 0.5;
+    } else if (overlays.species) {
       haloHue = speciesHue;
       haloAlpha = 0.35;
     } else if (overlays.genetics && options.selectedId) {
@@ -84,7 +96,8 @@ export function drawFrame(
     }
 
     const dimmedByAncestry = options.ancestryDescendantIds !== null && !options.ancestryDescendantIds.has(org.id);
-    ctx.globalAlpha = dimmedByAncestry ? 0.12 : 1;
+    const dimmedBySelection = options.selectedId !== null && options.selectedId !== org.id;
+    ctx.globalAlpha = dimmedByAncestry ? 0.12 : dimmedBySelection ? 0.28 : 1;
 
     if (overlays.vision || options.selectedId === org.id) {
       const fov = (org.genome.traits.fieldOfView * Math.PI) / 180;
@@ -109,10 +122,9 @@ export function drawFrame(
       ctx.fill();
     }
 
-    const palette = paletteFor(org, speciesHue);
     const moving = org.speed > 0.05;
     const animPhase = org.id * 0.7 + world.tick * 0.35;
-    drawCreatureSprite(ctx, sx, sy, heightPx, org.heading, moving, animPhase, palette);
+    drawCreatureSprite(ctx, sx, sy, heightPx, org.heading, moving, animPhase, org, options.selectedId === org.id ? options.xrayGene : null, speciesHue);
 
     if (org.infected) {
       ctx.strokeStyle = 'rgba(190,60,220,0.9)';
@@ -143,10 +155,22 @@ export function drawFrame(
   // Active storms
   for (const storm of world.activeStorms) {
     const [sx, sy] = worldToScreen(camera, storm.x, storm.y);
-    ctx.fillStyle = 'rgba(120,150,190,0.12)';
+    const r = storm.radius * camera.zoom;
+    const rain = ctx.createRadialGradient(sx, sy, r * 0.15, sx, sy, r);
+    rain.addColorStop(0, `rgba(85, 184, 255, ${0.14 * storm.intensity})`);
+    rain.addColorStop(0.7, `rgba(71, 157, 221, ${0.09 * storm.intensity})`);
+    rain.addColorStop(1, 'rgba(61, 130, 190, 0)');
+    ctx.fillStyle = rain;
     ctx.beginPath();
-    ctx.arc(sx, sy, storm.radius * camera.zoom, 0, Math.PI * 2);
+    ctx.arc(sx, sy, r, 0, Math.PI * 2);
     ctx.fill();
+    ctx.strokeStyle = `rgba(166, 224, 255, ${0.25 * storm.intensity})`;
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 16; i++) {
+      const px = sx + (((i * 47) % 100) / 100 - 0.5) * r * 1.4;
+      const py = sy + (((i * 83 + world.tick * 7) % 100) / 100 - 0.5) * r * 1.4;
+      ctx.beginPath(); ctx.moveTo(px, py - 4); ctx.lineTo(px - 2, py + 5); ctx.stroke();
+    }
   }
 
   ctx.restore();

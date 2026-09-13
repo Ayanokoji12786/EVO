@@ -143,6 +143,8 @@ export class SimulationController {
     drawFrame(this.ctx, this.camera, this.world, this.terrainTexture, {
       selectedId: store.selectedId,
       ancestryDescendantIds: ancestryRoot !== null ? allDescendants(this.world, ancestryRoot) : null,
+      xrayGene: store.xrayGene,
+      evolutionVision: store.evolutionVision,
     });
   }
 
@@ -174,25 +176,47 @@ export class SimulationController {
   select(orgId: number | null) {
     useSimStore.getState().select(orgId);
     if (orgId === null) {
+      useSimStore.getState().setFollow(null);
       useSimStore.getState().setInspector(null);
       return;
     }
     const org = this.world.organisms.get(orgId);
-    if (org) useSimStore.getState().setInspector(this.buildInspectorData(org));
+    if (org) { useSimStore.getState().setInspector(this.buildInspectorData(org)); this.follow(orgId); }
   }
 
   follow(orgId: number | null) {
     useSimStore.getState().setFollow(orgId);
   }
 
-  applyPendingGodAction(worldX: number, worldY: number) {
+  applyPendingGodAction(worldX: number, worldY: number): { before: number; after: number; eliminated: number; percent: number; extinctSpecies: number; survivors: number } | null {
     const store = useSimStore.getState();
     const action = store.pendingGodAction;
-    if (!action) return;
+    if (!action) return null;
+    let impact: { before: number; after: number; eliminated: number; percent: number; extinctSpecies: number; survivors: number } | null = null;
     switch (action.kind) {
-      case 'meteor':
-        god.triggerMeteor(this.world, worldX, worldY, action.radius);
+      case 'rainfall':
+        god.paintRainfall(this.world, worldX, worldY, action.radius, action.intensity, action.duration);
         break;
+      case 'mutate': {
+        let closest: Organism | null = null;
+        let distance = Infinity;
+        for (const organism of this.world.organisms.values()) {
+          const d = Math.hypot(organism.x - worldX, organism.y - worldY);
+          if (organism.alive && d < distance) { closest = organism; distance = d; }
+        }
+        if (closest && distance < 80) god.forceMutate(this.world, closest.id);
+        break;
+      }
+      case 'meteor':
+        {
+        const before = [...this.world.organisms.values()].filter((org) => org.alive).length;
+        const speciesBefore = new Set([...this.world.organisms.values()].filter((org) => org.alive).map((org) => org.speciesId));
+        god.triggerMeteor(this.world, worldX, worldY, action.radius);
+        const after = [...this.world.organisms.values()].filter((org) => org.alive).length;
+        const speciesAfter = new Set([...this.world.organisms.values()].filter((org) => org.alive).map((org) => org.speciesId));
+        impact = { before, after, eliminated: before - after, percent: before ? ((before - after) / before) * 100 : 0, extinctSpecies: [...speciesBefore].filter((id) => !speciesAfter.has(id)).length, survivors: speciesAfter.size };
+        break;
+        }
       case 'volcano':
         god.triggerVolcano(this.world, worldX, worldY);
         break;
@@ -221,7 +245,9 @@ export class SimulationController {
         if (store.selectedId !== null) god.teleport(this.world, store.selectedId, worldX, worldY);
         break;
     }
-    store.setPendingGodAction(null);
+    // Rain is a brush: it remains equipped until the player switches powers or dismisses it.
+    if (action.kind !== 'rainfall') store.setPendingGodAction(null);
+    return impact;
   }
 
   buildInspectorData(org: Organism): InspectorData {

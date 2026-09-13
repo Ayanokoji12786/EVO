@@ -48,6 +48,22 @@ export function triggerFoodBoom(state: WorldState, duration = 400): number {
   return duration;
 }
 
+/** Paints a local rainfall cell. Repeated brush strokes reinforce the same weather system
+ * instead of spawning an unbounded number of overlapping clouds. */
+export function paintRainfall(state: WorldState, x: number, y: number, radius: number, intensity: number, duration: number) {
+  const existing = state.activeStorms.find((storm) => Math.hypot(storm.x - x, storm.y - y) < Math.min(storm.radius, radius) * 0.7);
+  if (existing) {
+    existing.x = (existing.x + x) / 2;
+    existing.y = (existing.y + y) / 2;
+    existing.radius = Math.max(existing.radius, radius);
+    existing.intensity = Math.min(1, existing.intensity + intensity * 0.25);
+    existing.ttl = Math.max(existing.ttl, duration);
+  } else {
+    state.activeStorms.push({ x, y, radius, intensity, ttl: duration });
+    logDivine(state, `🌧 God painted rainfall over the land.`);
+  }
+}
+
 // --- Disasters ---
 
 export function triggerMeteor(state: WorldState, x: number, y: number, radius: number) {

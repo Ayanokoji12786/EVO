@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { SimulationController } from '../../state/simulationController';
 import type { WorldConfig } from '../../simulation/types';
 import { WorldCanvas } from './WorldCanvas';
@@ -13,7 +13,7 @@ import { TimeMachine } from '../TimeMachine/TimeMachine';
 import { ExperimentPanel } from '../Experiments/ExperimentPanel';
 import { About } from '../About/About';
 import { GenerationsLater } from '../Cinematic/GenerationsLater';
-import { useSimStore } from '../../state/simStore';
+import { useSimStore, type PendingGodAction } from '../../state/simStore';
 
 type Modal = 'tree' | 'time' | 'experiment' | 'about' | 'cinematic' | null;
 
@@ -24,9 +24,20 @@ export function SimulationScreen({ config, onExit }: { config: WorldConfig; onEx
   // phantom cleanup with no matching re-creation, permanently freezing the simulation.
   const [controller, setController] = useState<SimulationController | null>(null);
   const [modal, setModal] = useState<Modal>(null);
+  const [godArrival, setGodArrival] = useState(false);
+  const [radialAnchor, setRadialAnchor] = useState<{ x: number; y: number } | null>(null);
+  const [impact, setImpact] = useState<{ before: number; after: number; eliminated: number; percent: number; extinctSpecies: number; survivors: number } | null>(null);
+  const restoreSpeed = useRef<ReturnType<typeof setTimeout> | null>(null);
   const setWorldConfig = useSimStore((s) => s.setWorldConfig);
   const godMode = useSimStore((s) => s.godMode);
   const inspector = useSimStore((s) => s.inspector);
+  const speed = useSimStore((s) => s.speed);
+  const setGodMode = useSimStore((s) => s.setGodMode);
+  const setSpeed = useSimStore((s) => s.setSpeed);
+  const rainBrush = useSimStore((s) => s.pendingGodAction?.kind === 'rainfall' ? s.pendingGodAction : null);
+  const setPending = useSimStore((s) => s.setPendingGodAction);
+  const evolutionVision = useSimStore((s) => s.evolutionVision);
+  const species = useSimStore((s) => s.species);
 
   useEffect(() => {
     const c = new SimulationController(config);
@@ -39,19 +50,41 @@ export function SimulationScreen({ config, onExit }: { config: WorldConfig; onEx
 
   if (!controller) return null;
 
+  const toggleGodMode = () => {
+    if (godMode) {
+      setGodMode(false);
+      setGodArrival(false);
+      setRadialAnchor(null);
+      return;
+    }
+    setGodMode(true);
+    setGodArrival(true);
+    setSpeed(1);
+    controller.zoom(0.88);
+    restoreSpeed.current = setTimeout(() => {
+      setGodArrival(false);
+      setSpeed(speed);
+    }, 700);
+  };
+
   return (
-    <div style={{ position: 'absolute', inset: 0 }} data-godmode={godMode ? 'true' : 'false'}>
-      <WorldCanvas controller={controller} />
+    <div className={godArrival ? 'god-arrival-active' : ''} style={{ position: 'absolute', inset: 0 }} data-godmode={godMode ? 'true' : 'false'}>
+      <WorldCanvas controller={controller} onGodInvoke={(point) => !godArrival && setRadialAnchor(point)} onMeteorImpact={(report) => { setImpact(report); window.setTimeout(() => setImpact(null), 4300); }} />
       <TopBar
         onOpenTree={() => setModal('tree')}
         onOpenTimeMachine={() => setModal('time')}
         onOpenExperiment={() => setModal('experiment')}
         onOpenAbout={() => setModal('about')}
         onOpenCinematic={() => setModal('cinematic')}
+        onGodMode={toggleGodMode}
         onExit={onExit}
       />
 
-      {godMode && <GodPanel controller={controller} />}
+      {godArrival && <GodArrival generation={useSimStore.getState().stats?.generation ?? 0} seed={useSimStore.getState().seedDisplay} />}
+      {godMode && radialAnchor && !godArrival && <GodPanel controller={controller} anchor={radialAnchor} onClose={() => setRadialAnchor(null)} />}
+      {rainBrush && <RainBrushPanel action={rainBrush} onChange={setPending} />}
+      {impact && <MeteorImpactReport impact={impact} />}
+      {evolutionVision && <EvolutionVision speciesCount={species.length} />}
 
       {/* A single flex row anchors World (left), the timeline (center, takes remaining
           space), and the Creature inspector (right) so they never overlap regardless of
@@ -73,4 +106,21 @@ export function SimulationScreen({ config, onExit }: { config: WorldConfig; onEx
       {modal === 'cinematic' && <GenerationsLater controller={controller} onClose={() => setModal(null)} />}
     </div>
   );
+}
+
+function GodArrival({ generation, seed }: { generation: number; seed: string }) {
+  return <div className="god-arrival" aria-live="polite"><div className="god-arrival-lines" /><div className="god-arrival-message"><span>DIVINE CONTROL ESTABLISHED</span><small>WORLD {seed || '7F3A'} · GENERATION {generation.toLocaleString()}</small></div></div>;
+}
+
+function RainBrushPanel({ action, onChange }: { action: Extract<PendingGodAction, { kind: 'rainfall' }>; onChange: (action: Extract<PendingGodAction, { kind: 'rainfall' }> | null) => void }) {
+  const field = (label: string, key: 'radius' | 'intensity' | 'duration', min: number, max: number, step: number, format: (v: number) => string) => <label className="rain-brush-field">{label}<b>{format(action[key])}</b><input type="range" min={min} max={max} step={step} value={action[key]} onChange={(e) => onChange({ ...action, [key]: Number(e.target.value) })} /></label>;
+  return <div className="rain-brush-panel hud-panel"><div className="rain-brush-title"><span>🌧</span><div><strong>RAINFALL</strong><small>PAINT THE WEATHER</small></div><button onClick={() => onChange(null)}>×</button></div>{field('Intensity', 'intensity', 0.2, 1, 0.02, (v) => `${Math.round(v * 100)}%`)}{field('Radius', 'radius', 45, 190, 5, (v) => `${v}m`)}{field('Duration', 'duration', 240, 1800, 60, (v) => `${Math.round(v / 60)} days`)}<p>Drag over the land to form clouds, gather water, and grow a living food field.</p></div>;
+}
+
+function MeteorImpactReport({ impact }: { impact: { before: number; after: number; eliminated: number; percent: number; extinctSpecies: number; survivors: number } }) {
+  return <div className="meteor-aftermath"><div className="impact-population"><span>{impact.before.toLocaleString()}</span><i>→</i><strong>{impact.after.toLocaleString()}</strong></div><div className="impact-report"><b>MASS EXTINCTION EVENT</b><span>{impact.percent.toFixed(1)}% of life eliminated</span><small>{impact.extinctSpecies} species extinct · {impact.survivors} lineages surviving</small></div></div>;
+}
+
+function EvolutionVision({ speciesCount }: { speciesCount: number }) {
+  return <div className="evolution-vision" aria-live="polite"><div className="evolution-legend"><b>🧬 EVOLUTION VISION</b><span>GENETIC SIMILARITY FIELD · LAST 300 GENERATIONS</span></div><div className="evolution-branches"><i /><i /><i /></div>{speciesCount > 1 && <div className="speciation-detected"><b>SPECIATION DETECTED</b><span>one lineage has diverged into {speciesCount} living clusters</span></div>}</div>;
 }

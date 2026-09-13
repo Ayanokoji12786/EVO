@@ -2,177 +2,43 @@ import { useMemo, useRef, useState } from 'react';
 import type { SimulationController } from '../../state/simulationController';
 import { geneticDistance } from '../../genetics/genome';
 
-function hashHue(n: number): number {
-  return (n * 137.508) % 360;
-}
-
-interface LaneItem {
-  id: number;
-  name: string;
-  originTick: number;
-  endTick: number;
-  extinct: boolean;
-  parentId: number | null;
-  lane: number;
-  population: number;
-  peakPopulation: number;
-  originGeneration: number;
-}
+type Branch = { id:number; name:string; from:number; to:number; extinct:boolean; parent:number|null; lane:number; generation:number; population:number; peak:number };
+const hue = (id:number) => (id * 137.508) % 360;
 
 export function TreeOfLife({ controller, onClose }: { controller: SimulationController; onClose: () => void }) {
   const [selected, setSelected] = useState<number | null>(null);
-  const [view, setView] = useState({ panX: 0, scale: 1 });
-  const dragRef = useRef<{ dragging: boolean; lastX: number }>({ dragging: false, lastX: 0 });
-
-  const species = controller.world.species.all();
-  const currentTick = controller.world.tick;
-
-  const { lanes, maxTick, laneCount } = useMemo(() => {
-    const sorted = [...species].sort((a, b) => a.originTick - b.originTick);
-    const laneEnds: number[] = [];
-    const items: LaneItem[] = [];
-    for (const s of sorted) {
-      const end = s.extinctTick ?? currentTick;
-      let laneIdx = laneEnds.findIndex((e) => e < s.originTick - 5);
-      if (laneIdx === -1) {
-        laneIdx = laneEnds.length;
-        laneEnds.push(end);
-      } else {
-        laneEnds[laneIdx] = end;
-      }
-      items.push({
-        id: s.id,
-        name: s.name,
-        originTick: s.originTick,
-        endTick: end,
-        extinct: s.extinctTick !== null,
-        parentId: s.parentSpeciesId,
-        lane: laneIdx,
-        population: s.population,
-        peakPopulation: s.peakPopulation,
-        originGeneration: s.originGeneration,
-      });
+  const [view, setView] = useState({ pan: 0, zoom: 1 });
+  const drag = useRef({ active:false, x:0 });
+  const tick = controller.world.tick;
+  const { branches, lanes } = useMemo(() => {
+    const ends:number[]=[]; const result:Branch[]=[];
+    for (const s of [...controller.world.species.all()].sort((a,b)=>a.originTick-b.originTick)) {
+      const to=s.extinctTick ?? tick; let lane=ends.findIndex((end)=>end<s.originTick-8); if(lane<0){lane=ends.length;ends.push(to);}else ends[lane]=to;
+      result.push({id:s.id,name:s.name,from:s.originTick,to,extinct:s.extinctTick!==null,parent:s.parentSpeciesId,lane,generation:s.originGeneration,population:s.population,peak:s.peakPopulation});
     }
-    return { lanes: items, maxTick: Math.max(1, currentTick), laneCount: laneEnds.length };
-  }, [species, currentTick]);
+    return { branches:result, lanes:Math.max(1,ends.length) };
+  }, [controller.world.species.all(), tick]);
+  const events=controller.world.events.all().filter((e)=>/mass extinction|meteor|wildfire|plague/i.test(e.message));
+  const w=1280, h=Math.max(560,lanes*30+130), max=Math.max(1,tick);
+  const x=(t:number)=>100+(t/max)*(w-180)*view.zoom+view.pan;
+  const y=(lane:number)=>75+lane*(Math.min(34,Math.max(18,(h-150)/lanes)));
+  const chosen=selected===null?null:controller.world.species.get(selected);
+  const parent=chosen?.parentSpeciesId===null||chosen?.parentSpeciesId===undefined?null:controller.world.species.get(chosen.parentSpeciesId);
 
-  const width = 900;
-  const laneHeight = 26;
-  const height = Math.max(200, laneCount * laneHeight + 60);
-  const marginX = 50;
-
-  function xOf(tick: number) {
-    return marginX + (tick / maxTick) * (width - marginX * 2) * view.scale + view.panX;
-  }
-  function yOf(lane: number) {
-    return 40 + lane * laneHeight;
-  }
-
-  const selectedRecord = selected !== null ? controller.world.species.get(selected) : null;
-  const parentRecord = selectedRecord?.parentSpeciesId != null ? controller.world.species.get(selectedRecord.parentSpeciesId) : null;
-  const divergence = selectedRecord && parentRecord ? geneticDistance(selectedRecord.representativeGenome, parentRecord.representativeGenome) : null;
-
-  return (
-    <div style={{ position: 'absolute', inset: 0, background: 'rgba(4,6,10,0.88)', zIndex: 50, display: 'flex', flexDirection: 'column' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 20px' }}>
-        <h2 style={{ margin: 0, fontSize: 16 }}>🌳 Tree of Life</h2>
-        <button className="btn" onClick={onClose}>
-          ✕ Close
-        </button>
+  return <div className="tree-galaxy">
+    <header className="tree-header"><div><b>✦ GALAXY OF EVOLUTION</b><span>GENERATION 1 → {controller.world.maxGenerationSeen.toLocaleString()} · {branches.length} LINEAGES ARCHIVED</span></div><div><button className="btn" onClick={()=>setView({pan:0,zoom:1})}>⌖ Reset view</button><button className="btn" onClick={onClose}>✕ Close</button></div></header>
+    <main className="tree-main">
+      <div className="tree-canvas" onMouseDown={(e)=>drag.current={active:true,x:e.clientX}} onMouseMove={(e)=>{if(drag.current.active){const d=e.clientX-drag.current.x;drag.current.x=e.clientX;setView(v=>({...v,pan:v.pan+d}));}}} onMouseUp={()=>drag.current.active=false} onMouseLeave={()=>drag.current.active=false} onWheel={(e)=>setView(v=>({...v,zoom:Math.max(.45,Math.min(5,v.zoom*(e.deltaY<0?1.13:.88)))}))}>
+        <svg width={w} height={h}>
+          <defs><filter id="livingGlow"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter><pattern id="stars" width="70" height="70" patternUnits="userSpaceOnUse"><circle cx="8" cy="11" r=".7" fill="#d7ddff"/><circle cx="45" cy="31" r=".5" fill="#a5f6ed"/><circle cx="62" cy="58" r=".8" fill="#9675ff"/></pattern></defs>
+          <rect width="100%" height="100%" fill="url(#stars)"/><text x="100" y="34" fill="#8f9ab7" fontSize="10" letterSpacing="2">TIME →</text>
+          {events.map((event)=><g key={event.id}><line x1={x(event.tick)} y1="52" x2={x(event.tick)} y2={h-38} stroke="#ff735b" strokeOpacity=".42" strokeWidth="2"/><text x={x(event.tick)+5} y="65" fill="#ff967d" fontSize="8">EXTINCTION SCAR · G{event.generation}</text></g>)}
+          {branches.map((b)=>{const p=b.parent===null?null:branches.find((candidate)=>candidate.id===b.parent);return <g key={b.id}>{p&&<path d={`M${x(b.from)} ${y(p.lane)} C${x(b.from)-22} ${y(p.lane)},${x(b.from)-22} ${y(b.lane)},${x(b.from)} ${y(b.lane)}`} fill="none" stroke={`hsla(${hue(b.id)},75%,70%,.45)`} strokeWidth="1.4"/>}<line x1={x(b.from)} y1={y(b.lane)} x2={x(b.to)} y2={y(b.lane)} stroke={`hsla(${hue(b.id)},${b.extinct?28:75}%,${b.extinct?42:66}%,${selected===null||selected===b.id?1:.2})`} strokeWidth={b.extinct?1.5:2.5} strokeDasharray={b.extinct?'4 4':undefined} filter={b.extinct?undefined:'url(#livingGlow)'} onClick={()=>setSelected(b.id)} style={{cursor:'pointer'}}/><circle cx={x(b.to)} cy={y(b.lane)} r={b.extinct?3:5} fill={b.extinct?'#586071':`hsl(${hue(b.id)},85%,72%)`} filter={b.extinct?undefined:'url(#livingGlow)'} onClick={()=>setSelected(b.id)} style={{cursor:'pointer'}}/>{(selected===b.id||(!b.extinct&&b.lane%3===0))&&<text x={x(b.to)+7} y={y(b.lane)+3} fontSize="10" fill={b.extinct?'#687185':'#edf8ff'}>{b.name}</text>}</g>;})}
+        </svg>
       </div>
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-        <div
-          className="scroll-thin"
-          style={{ flex: 1, overflow: 'auto', padding: 20 }}
-          onMouseDown={(e) => {
-            dragRef.current = { dragging: true, lastX: e.clientX };
-          }}
-          onMouseMove={(e) => {
-            if (!dragRef.current.dragging) return;
-            const dx = e.clientX - dragRef.current.lastX;
-            dragRef.current.lastX = e.clientX;
-            setView((v) => ({ ...v, panX: v.panX + dx }));
-          }}
-          onMouseUp={() => (dragRef.current.dragging = false)}
-          onWheel={(e) => {
-            setView((v) => ({ ...v, scale: Math.max(0.3, Math.min(6, v.scale * (e.deltaY < 0 ? 1.1 : 0.9))) }));
-          }}
-        >
-          <svg width={Math.max(width, width * view.scale)} height={height} style={{ display: 'block' }}>
-            {lanes.map((item) => {
-              const parent = item.parentId !== null ? lanes.find((l) => l.id === item.parentId) : null;
-              return (
-                <g key={item.id}>
-                  {parent && (
-                    <line
-                      x1={xOf(item.originTick)}
-                      y1={yOf(parent.lane)}
-                      x2={xOf(item.originTick)}
-                      y2={yOf(item.lane)}
-                      stroke="rgba(255,255,255,0.15)"
-                      strokeDasharray="3,3"
-                    />
-                  )}
-                  <rect
-                    x={xOf(item.originTick)}
-                    y={yOf(item.lane) - 8}
-                    width={Math.max(2, xOf(item.endTick) - xOf(item.originTick))}
-                    height={16}
-                    rx={8}
-                    fill={`hsl(${hashHue(item.id)}, 65%, ${item.extinct ? 32 : 50}%)`}
-                    opacity={selected === null || selected === item.id ? 1 : 0.35}
-                    stroke={selected === item.id ? '#fff' : 'none'}
-                    strokeWidth={1.5}
-                    style={{ cursor: 'pointer' }}
-                    onClick={() => setSelected(item.id)}
-                  />
-                  <text x={xOf(item.originTick) + 4} y={yOf(item.lane) + 4} fontSize={9} fill="#fff" style={{ pointerEvents: 'none' }}>
-                    {item.name}
-                    {item.extinct ? ' ☠' : ''}
-                  </text>
-                </g>
-              );
-            })}
-          </svg>
-        </div>
-
-        {selectedRecord && (
-          <div className="glass scroll-thin" style={{ width: 300, margin: 16, padding: 16, overflowY: 'auto' }}>
-            <h3 style={{ margin: '0 0 8px' }}>{selectedRecord.name}</h3>
-            <DetailRow label="Origin generation" value={selectedRecord.originGeneration} />
-            <DetailRow label="Origin tick" value={selectedRecord.originTick} />
-            <DetailRow label="Status" value={selectedRecord.extinctTick !== null ? `Extinct @ tick ${selectedRecord.extinctTick}` : 'Living'} />
-            <DetailRow label="Current population" value={selectedRecord.population} />
-            <DetailRow label="Peak population" value={selectedRecord.peakPopulation} />
-            <DetailRow
-              label="Lineage span"
-              value={`${(selectedRecord.extinctTick ?? currentTick) - selectedRecord.originTick} ticks`}
-            />
-            {parentRecord && <DetailRow label="Diverged from" value={parentRecord.name} />}
-            {divergence !== null && <DetailRow label="Genetic distance from parent" value={divergence.toFixed(3)} />}
-            <div style={{ fontSize: 10, textTransform: 'uppercase', color: 'var(--text-dim)', margin: '12px 0 6px' }}>
-              Representative traits
-            </div>
-            {Object.entries(selectedRecord.representativeGenome.traits)
-              .slice(0, 8)
-              .map(([k, v]) => (
-                <DetailRow key={k} label={k} value={v.toFixed(2)} />
-              ))}
-          </div>
-        )}
-      </div>
-      <div style={{ padding: '8px 20px', fontSize: 11, color: 'var(--text-dim)' }}>
-        Drag to pan, scroll to zoom. Each bar is a species' lifetime; dashed lines show where it diverged from its parent species.
-      </div>
-    </div>
-  );
+      <aside className="tree-inspector">{chosen ? <><span>LINEAGE SIGNAL</span><h2>{chosen.name}</h2><b className={chosen.extinctTick===null?'living':'extinct'}>{chosen.extinctTick===null?'● LIVING SPECIES':'○ EXTINCT'}</b><Row label="Origin" value={`Generation ${chosen.originGeneration}`}/><Row label="Lifetime" value={`${chosen.originTick} → ${chosen.extinctTick??tick}`}/><Row label="Population" value={`${chosen.population} now · ${chosen.peakPopulation} peak`}/>{parent&&<Row label="Diverged from" value={parent.name}/>} {parent&&<Row label="Genetic distance" value={geneticDistance(chosen.representativeGenome,parent.representativeGenome).toFixed(3)}/>}<button className="btn primary" onClick={()=>setView({zoom:3,pan:-x(chosen.originTick)*2+360})}>Zoom to branch</button></> : <><span>COMPLETE PHYLOGENY</span><h2>Choose a branch</h2><p>Living species glow. Extinct lineages fade into the background. Vertical scars mark catastrophic population collapses.</p></>}</aside>
+    </main>
+    <footer>Drag to traverse time · Scroll to zoom · Click a lineage to inspect its complete history</footer>
+  </div>;
 }
-
-function DetailRow({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 4 }}>
-      <span style={{ color: 'var(--text-dim)' }}>{label}</span>
-      <span style={{ fontFamily: 'var(--mono)' }}>{value}</span>
-    </div>
-  );
-}
+function Row({label,value}:{label:string;value:string|number}){return <div className="tree-row"><span>{label}</span><b>{value}</b></div>}

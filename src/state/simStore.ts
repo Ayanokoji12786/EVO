@@ -5,6 +5,8 @@ import type { ExperimentResult } from '../experiments/experiment';
 import type { TerrainType } from '../simulation/types';
 
 export type PendingGodAction =
+  | { kind: 'rainfall'; radius: number; intensity: number; duration: number }
+  | { kind: 'mutate' }
   | { kind: 'meteor'; radius: number }
   | { kind: 'volcano' }
   | { kind: 'flood'; radius: number }
@@ -63,6 +65,8 @@ interface SimStoreState {
   experimentRunning: boolean;
   timeMachineOpen: boolean;
   pendingGodAction: PendingGodAction | null;
+  xrayGene: string | null;
+  evolutionVision: boolean;
 
   setPhase: (p: SimStoreState['phase']) => void;
   setWorldConfig: (c: WorldConfig, seedDisplay: string) => void;
@@ -81,6 +85,8 @@ interface SimStoreState {
   setExperimentRunning: (r: boolean) => void;
   setTimeMachineOpen: (v: boolean) => void;
   setPendingGodAction: (a: PendingGodAction | null) => void;
+  setXrayGene: (gene: string | null) => void;
+  setEvolutionVision: (active: boolean) => void;
 }
 
 export const useSimStore = create<SimStoreState>((set) => ({
@@ -107,6 +113,8 @@ export const useSimStore = create<SimStoreState>((set) => ({
   experimentRunning: false,
   timeMachineOpen: false,
   pendingGodAction: null,
+  xrayGene: null,
+  evolutionVision: false,
 
   setPhase: (phase) => set({ phase }),
   setWorldConfig: (worldConfig, seedDisplay) => set({ worldConfig, seedDisplay }),
@@ -126,4 +134,6 @@ export const useSimStore = create<SimStoreState>((set) => ({
   setExperimentRunning: (experimentRunning) => set({ experimentRunning }),
   setTimeMachineOpen: (timeMachineOpen) => set({ timeMachineOpen }),
   setPendingGodAction: (pendingGodAction) => set({ pendingGodAction }),
+  setXrayGene: (xrayGene) => set({ xrayGene }),
+  setEvolutionVision: (evolutionVision) => set({ evolutionVision }),
 }));

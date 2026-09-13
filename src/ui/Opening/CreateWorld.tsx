@@ -14,6 +14,7 @@ export function CreateWorld({ onStart }: { onStart: (config: WorldConfig) => voi
   const [climate, setClimate] = useState<WorldConfig['climate']>('temperate');
   const [worldSize, setWorldSize] = useState(3200);
   const [advanced, setAdvanced] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   function buildConfig(): WorldConfig {
     return {
@@ -28,6 +29,8 @@ export function CreateWorld({ onStart }: { onStart: (config: WorldConfig) => voi
       climate,
     };
   }
+
+  if (!showSettings) return <div className="opening-hero"><div className="opening-life" aria-hidden="true"><i/><i/><i/><i/><i/><i/><i/><i/></div><div className="opening-copy"><h1>EVO</h1><h2>Life doesn't follow a script.</h2><p>An artificial-life laboratory for exploring evolution through natural selection.</p><button className="opening-cta" onClick={()=>setShowSettings(true)}>CREATE UNIVERSE</button><button className="opening-replay" onClick={()=>onStart(buildConfig())}>Replay World {seed} — a new evolutionary record</button></div></div>;
 
   return (
     <div
@@ -128,7 +131,7 @@ export function CreateWorld({ onStart }: { onStart: (config: WorldConfig) => voi
               style={{ flex: 1, padding: '12px 0', fontSize: 14 }}
               onClick={() => onStart(buildConfig())}
             >
-              NEW WORLD
+              CREATE UNIVERSE
             </button>
             <button
               className="btn"
