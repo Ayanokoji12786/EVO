@@ -1,6 +1,7 @@
 import type { EventCategory, HistoryEvent, StatsSnapshot, SpeciesRecord } from '../simulation/types';
 
 export class EventLog {
+  private static readonly MAX_EVENTS = 3000;
   private events: HistoryEvent[] = [];
   private nextId = 1;
   private populationRollingMax = 0;
@@ -9,6 +10,9 @@ export class EventLog {
 
   add(category: EventCategory, message: string, tick: number, generation: number) {
     this.events.push({ id: this.nextId++, tick, generation, category, message });
+    // The live UI renders event markers and retains this list for replay. Bound it so a
+    // long-running max-speed world cannot grow memory and timeline work indefinitely.
+    if (this.events.length > EventLog.MAX_EVENTS) this.events.splice(0, this.events.length - EventLog.MAX_EVENTS);
   }
 
   all(): HistoryEvent[] {

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { SimulationController } from '../../state/simulationController';
 import { Overlay } from '../TimeMachine/TimeMachine';
 import { createExperimentPair, compareResults, exportResultAsCSV, exportResultAsJSON, type ExperimentVariable } from '../../experiments/experiment';
@@ -22,8 +22,15 @@ export function ExperimentPanel({ controller, onClose }: { controller: Simulatio
   const result = useSimStore((s) => s.experimentResult);
   const setResult = useSimStore((s) => s.setExperimentResult);
   const [progress, setProgress] = useState(0);
+  const cancelled = useRef(false);
+
+  useEffect(() => () => {
+    cancelled.current = true;
+    setRunning(false);
+  }, [setRunning]);
 
   async function run() {
+    cancelled.current = false;
     setRunning(true);
     setResult(null);
     const v = VARIABLES[variableIdx];
@@ -35,15 +42,17 @@ export function ExperimentPanel({ controller, onClose }: { controller: Simulatio
     const chunk = 200;
     let done = 0;
     while (done < ticks) {
+      if (cancelled.current) return;
       const n = Math.min(chunk, ticks - done);
       for (let i = 0; i < n; i++) {
         if (pair.control.organisms.size > 0) stepWorld(pair.control, 1);
         if (pair.experimentWorld.organisms.size > 0) stepWorld(pair.experimentWorld, 1);
       }
       done += n;
-      setProgress(done / ticks);
+      if (!cancelled.current) setProgress(done / ticks);
       await new Promise((r) => setTimeout(r, 0));
     }
+    if (cancelled.current) return;
     setResult(compareResults(pair));
     setRunning(false);
   }

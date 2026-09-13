@@ -18,7 +18,12 @@ export interface ExperimentPair {
 
 function applyVariable(state: WorldState, path: ExperimentVariable['path'], value: number) {
   if (path === 'config.foodAbundance') state.config.foodAbundance = value;
-  else if (path === 'config.mutationRate') state.config.mutationRate = value;
+  else if (path === 'config.mutationRate') {
+    state.config.mutationRate = value;
+    // World creation copies the configured rate into individual genomes. Updating the
+    // config alone after creation made this experiment a no-op.
+    for (const organism of state.organisms.values()) organism.genome.traits.mutationRate = value;
+  }
   else if (path === 'climate.rainfall') state.climate.rainfall = value;
   else if (path === 'climate.baseTemperature') state.climate.baseTemperature = value;
   else if (path === 'laws.predationEffectiveness') state.laws.predationEffectiveness = value;

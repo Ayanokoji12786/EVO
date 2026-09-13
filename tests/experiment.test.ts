@@ -37,4 +37,14 @@ describe('Experiment Mode / Split Timeline', () => {
     runTicks(pair.experimentWorld, 300);
     expect(pair.control.food.items.size).toBeGreaterThan(pair.experimentWorld.food.items.size);
   });
+
+  it('applies a mutation-rate experiment to the organisms that actually reproduce', () => {
+    const pair = createExperimentPair(baseConfig(), 'does mutation rate matter?', {
+      path: 'config.mutationRate',
+      controlValue: 0.02,
+      experimentValue: 0.15,
+    });
+    expect([...pair.control.organisms.values()].every((organism) => organism.genome.traits.mutationRate === 0.02)).toBe(true);
+    expect([...pair.experimentWorld.organisms.values()].every((organism) => organism.genome.traits.mutationRate === 0.15)).toBe(true);
+  });
 });

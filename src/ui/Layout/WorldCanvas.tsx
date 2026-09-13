@@ -70,6 +70,9 @@ export function WorldCanvas({ controller, onGodInvoke, onMeteorImpact }: { contr
           const wasDrag = dragState.current.moved;
           dragState.current.dragging = false;
           setIsDragging(false);
+          // Rain is applied on pointer-down and repeatedly while dragging. Do not apply
+          // the generic click action again when the pointer is released.
+          if (useSimStore.getState().pendingGodAction?.kind === 'rainfall') return;
           if (wasDrag) return;
           const rect = (e.target as HTMLCanvasElement).getBoundingClientRect();
           const sx = e.clientX - rect.left;
