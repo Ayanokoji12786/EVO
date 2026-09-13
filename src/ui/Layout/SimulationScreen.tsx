@@ -3,8 +3,8 @@ import { SimulationController } from '../../state/simulationController';
 import type { WorldConfig } from '../../simulation/types';
 import { WorldCanvas } from './WorldCanvas';
 import { TopBar } from './TopBar';
-import { StatsPanel } from '../Dashboard/StatsPanel';
-import { EventLogPanel } from '../EventLog/EventLogPanel';
+import { WorldPanel } from './WorldPanel';
+import { BottomTimeline } from './BottomTimeline';
 import { CreatureInspector } from '../Inspector/CreatureInspector';
 import { GodPanel } from '../GodMode/GodPanel';
 import { DeathToast } from './DeathToast';
@@ -40,34 +40,31 @@ export function SimulationScreen({ config, onExit }: { config: WorldConfig; onEx
   if (!controller) return null;
 
   return (
-    <div style={{ position: 'absolute', inset: 0 }}>
+    <div style={{ position: 'absolute', inset: 0 }} data-godmode={godMode ? 'true' : 'false'}>
       <WorldCanvas controller={controller} />
       <TopBar
         onOpenTree={() => setModal('tree')}
         onOpenTimeMachine={() => setModal('time')}
         onOpenExperiment={() => setModal('experiment')}
         onOpenAbout={() => setModal('about')}
+        onOpenCinematic={() => setModal('cinematic')}
         onExit={onExit}
       />
-      {godMode && <GodPanel controller={controller} />}
-      {inspector && <CreatureInspector controller={controller} />}
 
-      <div style={{ position: 'absolute', bottom: 12, right: 12, width: 320, height: 380, zIndex: 10 }}>
-        <StatsPanel />
-      </div>
-      {!godMode && (
-        <div style={{ position: 'absolute', bottom: 12, left: 12, width: 320, height: 260, zIndex: 10 }}>
-          <EventLogPanel />
+      {godMode && <GodPanel controller={controller} />}
+
+      {/* A single flex row anchors World (left), the timeline (center, takes remaining
+          space), and the Creature inspector (right) so they never overlap regardless of
+          viewport width or how tall the World panel expands. */}
+      <div style={{ position: 'absolute', left: 16, right: 16, bottom: 16, zIndex: 15, display: 'flex', alignItems: 'flex-end', gap: 16 }}>
+        <WorldPanel />
+        <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
+          <BottomTimeline controller={controller} onOpen={() => setModal('time')} />
         </div>
-      )}
+        {inspector ? <CreatureInspector controller={controller} /> : <div />}
+      </div>
 
       <DeathToast />
-
-      <div style={{ position: 'absolute', bottom: 12, left: 348, zIndex: 10 }}>
-        <button className="btn divine" onClick={() => setModal('cinematic')}>
-          🎬 500 GENERATIONS LATER
-        </button>
-      </div>
 
       {modal === 'tree' && <TreeOfLife controller={controller} onClose={() => setModal(null)} />}
       {modal === 'time' && <TimeMachine controller={controller} onClose={() => setModal(null)} />}

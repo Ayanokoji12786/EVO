@@ -9,15 +9,17 @@ const ICONS: Record<EventCategory, string> = {
   environmental: '🌎',
 };
 
-export function EventLogPanel() {
+export function EventLogPanel({ embedded = false }: { embedded?: boolean }) {
   const events = useSimStore((s) => s.events);
   const recent = events.slice(-60).reverse();
 
   return (
-    <div className="glass scroll-thin" style={{ padding: 16, overflowY: 'auto', height: '100%' }}>
-      <h3 style={{ margin: '0 0 12px', fontSize: 13, letterSpacing: 1, color: 'var(--text-dim)', textTransform: 'uppercase' }}>
-        Natural History
-      </h3>
+    <div className={embedded ? undefined : 'glass scroll-thin'} style={{ padding: 16, overflowY: embedded ? 'visible' : 'auto', height: embedded ? undefined : '100%' }}>
+      {!embedded && (
+        <h3 style={{ margin: '0 0 12px', fontSize: 13, letterSpacing: 1, color: 'var(--text-dim)', textTransform: 'uppercase' }}>
+          Natural History
+        </h3>
+      )}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {recent.length === 0 && <div style={{ color: 'var(--text-dim)', fontSize: 12 }}>Nothing notable has happened yet.</div>}
         {recent.map((e) => (

@@ -33,8 +33,8 @@ export function GodPanel({ controller }: { controller: SimulationController }) {
 
   return (
     <div
-      className="glass scroll-thin"
-      style={{ position: 'absolute', top: 76, left: 12, width: 320, maxHeight: 'calc(100% - 100px)', overflowY: 'auto', padding: 16, zIndex: 10 }}
+      className="hud-panel scroll-thin"
+      style={{ position: 'absolute', top: 92, left: 16, width: 320, maxHeight: 'calc(100vh - 200px)', overflowY: 'auto', padding: 16, zIndex: 10 }}
     >
       <div style={{ color: 'var(--divine)', fontSize: 11, letterSpacing: 1, marginBottom: 4 }}>YOU ARE NOW INTERFERING WITH NATURAL SELECTION</div>
       <div style={{ display: 'flex', gap: 12, fontSize: 10, color: 'var(--text-dim)', marginBottom: 12, fontFamily: 'var(--mono)' }}>

@@ -1,18 +1,21 @@
+import { useState, useRef, useEffect } from 'react';
 import { useSimStore, type SpeedSetting } from '../../state/simStore';
 
-const SPEEDS: SpeedSetting[] = [1, 2, 5, 10, 'max'];
+const SPEEDS: SpeedSetting[] = [1, 5, 10, 'max'];
 
 export function TopBar({
   onOpenTree,
   onOpenTimeMachine,
   onOpenExperiment,
   onOpenAbout,
+  onOpenCinematic,
   onExit,
 }: {
   onOpenTree: () => void;
   onOpenTimeMachine: () => void;
   onOpenExperiment: () => void;
   onOpenAbout: () => void;
+  onOpenCinematic: () => void;
   onExit: () => void;
 }) {
   const speed = useSimStore((s) => s.speed);
@@ -23,76 +26,181 @@ export function TopBar({
   const setSpeed = useSimStore((s) => s.setSpeed);
   const setPaused = useSimStore((s) => s.setPaused);
   const setGodMode = useSimStore((s) => s.setGodMode);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onDocClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
+    }
+    document.addEventListener('mousedown', onDocClick);
+    return () => document.removeEventListener('mousedown', onDocClick);
+  }, [menuOpen]);
 
   return (
-    <div
-      className="glass"
-      style={{
-        position: 'absolute',
-        top: 12,
-        left: 12,
-        right: 12,
-        display: 'flex',
-        alignItems: 'center',
-        gap: 16,
-        padding: '10px 16px',
-        zIndex: 10,
-      }}
-    >
-      <div style={{ fontWeight: 800, letterSpacing: 3, color: 'var(--accent)', fontSize: 16 }}>EVO</div>
-      <div style={{ fontFamily: 'var(--mono)', fontSize: 11, color: 'var(--text-dim)' }}>SEED {seedDisplay}</div>
-      <div style={{ width: 1, height: 20, background: 'var(--border-strong)' }} />
+    <div style={{ position: 'absolute', top: 16, left: 16, right: 16, zIndex: 20, display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+      <div
+        className="glass scroll-thin"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 22,
+          padding: '10px 18px',
+          flex: 1,
+          minWidth: 0,
+          overflowX: 'auto',
+          overflowY: 'hidden',
+        }}
+      >
+        <div style={{ flexShrink: 0 }}>
+          <div style={{ fontWeight: 800, letterSpacing: 4, color: 'var(--accent)', fontSize: 17 }}>EVO</div>
+          <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--text-dim)', letterSpacing: 1 }}>SEED {seedDisplay}</div>
+        </div>
 
-      <div style={{ display: 'flex', gap: 6 }}>
-        <button className={`btn ${paused ? 'active' : ''}`} onClick={() => setPaused(!paused)} title="Pause / Play">
-          {paused ? '▶' : '⏸'}
+        <Divider />
+
+        <Readout label="Generation" value={stats?.generation ?? 0} />
+        <Readout label="Population" value={(stats?.population ?? 0).toLocaleString()} />
+        <Readout label="Species" value={stats?.speciesCount ?? 0} />
+
+        <Divider />
+
+        <div style={{ display: 'flex', gap: 4, background: 'rgba(255,255,255,0.03)', borderRadius: 999, padding: 4, flexShrink: 0 }}>
+          <button className={`btn pill ${paused ? 'active' : ''}`} onClick={() => setPaused(!paused)} title="Pause / Play">
+            {paused ? '▶' : '⏸'}
+          </button>
+          {SPEEDS.map((s) => (
+            <button
+              key={s}
+              className={`btn pill ${!paused && speed === s ? 'active' : ''}`}
+              onClick={() => {
+                setSpeed(s);
+                setPaused(false);
+              }}
+            >
+              {s === 'max' ? '⚡' : `${s}×`}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ flex: '1 0 12px' }} />
+      </div>
+
+      {/* The "more views" menu and its dropdown live outside the scrollable glass bar —
+          that bar needs overflow-y: hidden to clip horizontally on narrow viewports
+          without spilling vertically, which would otherwise clip this dropdown too. */}
+      <div ref={menuRef} className="glass" style={{ position: 'relative', flexShrink: 0, padding: 4 }}>
+        <button className={`btn pill ${menuOpen ? 'active' : ''}`} onClick={() => setMenuOpen((v) => !v)} title="More views">
+          ⋯
         </button>
-        {SPEEDS.map((s) => (
-          <button
-            key={s}
-            className={`btn ${!paused && speed === s ? 'active' : ''}`}
-            onClick={() => {
-              setSpeed(s);
-              setPaused(false);
+        {menuOpen && (
+          <div
+            className="hud-panel"
+            style={{
+              position: 'absolute',
+              top: 'calc(100% + 8px)',
+              right: 0,
+              width: 200,
+              padding: 8,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 2,
+              zIndex: 30,
             }}
           >
-            {s === 'max' ? '⚡' : `${s}×`}
-          </button>
-        ))}
+            <MenuItem
+              icon="🌳"
+              label="Tree of Life"
+              onClick={() => {
+                onOpenTree();
+                setMenuOpen(false);
+              }}
+            />
+            <MenuItem
+              icon="⏱"
+              label="Time Machine"
+              onClick={() => {
+                onOpenTimeMachine();
+                setMenuOpen(false);
+              }}
+            />
+            <MenuItem
+              icon="🧪"
+              label="Experiments"
+              onClick={() => {
+                onOpenExperiment();
+                setMenuOpen(false);
+              }}
+            />
+            <MenuItem
+              icon="🎬"
+              label="500 Generations Later"
+              onClick={() => {
+                onOpenCinematic();
+                setMenuOpen(false);
+              }}
+            />
+            <MenuItem
+              icon="ℹ"
+              label="About"
+              onClick={() => {
+                onOpenAbout();
+                setMenuOpen(false);
+              }}
+            />
+            <div style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
+            <MenuItem icon="✕" label="Exit World" onClick={onExit} danger />
+          </div>
+        )}
       </div>
 
-      <div style={{ width: 1, height: 20, background: 'var(--border-strong)' }} />
-
-      <div style={{ display: 'flex', gap: 18, fontSize: 12, color: 'var(--text-dim)', fontFamily: 'var(--mono)' }}>
-        <span>POP {stats?.population ?? 0}</span>
-        <span>GEN {stats?.generation ?? 0}</span>
-        <span>SPECIES {stats?.speciesCount ?? 0}</span>
-        <span>TICK {stats?.tick ?? 0}</span>
-      </div>
-
-      <div style={{ flex: 1 }} />
-
-      <button className="btn" onClick={onOpenTree}>
-        🌳 Tree of Life
-      </button>
-      <button className="btn" onClick={onOpenTimeMachine}>
-        ⏱ Time Machine
-      </button>
-      <button className="btn" onClick={onOpenExperiment}>
-        🧪 Experiments
-      </button>
-      <button className="btn" onClick={onOpenAbout}>
-        ℹ About
-      </button>
       <button
-        className={`btn ${godMode ? 'divine active' : 'divine'}`}
+        className={`btn divine godmode-toggle ${godMode ? 'active' : ''}`}
         onClick={() => setGodMode(!godMode)}
+        style={{ padding: '0 22px', fontSize: 13, fontWeight: 700, letterSpacing: 1, flexShrink: 0, whiteSpace: 'nowrap' }}
       >
         ⚡ GOD MODE
       </button>
-      <button className="btn" onClick={onExit}>
-        ✕
-      </button>
     </div>
+  );
+}
+
+function Divider() {
+  return <div style={{ width: 1, flexShrink: 0, alignSelf: 'stretch', background: 'var(--border-strong)' }} />;
+}
+
+function Readout({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="readout" style={{ flexShrink: 0 }}>
+      <div className="readout-value">{value}</div>
+      <div className="readout-label">{label}</div>
+    </div>
+  );
+}
+
+function MenuItem({ icon, label, onClick, danger }: { icon: string; label: string; onClick: () => void; danger?: boolean }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        background: 'transparent',
+        border: 'none',
+        color: danger ? 'var(--danger)' : 'var(--text)',
+        fontSize: 13,
+        padding: '8px 10px',
+        borderRadius: 8,
+        textAlign: 'left',
+        width: '100%',
+      }}
+      onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.06)')}
+      onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+    >
+      <span>{icon}</span>
+      <span>{label}</span>
+    </button>
   );
 }

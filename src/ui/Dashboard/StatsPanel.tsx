@@ -31,7 +31,7 @@ function readValue(s: StatsSnapshot, opt: GraphOption): number {
   return s.avg[opt.key];
 }
 
-export function StatsPanel() {
+export function StatsPanel({ embedded = false }: { embedded?: boolean }) {
   const stats = useSimStore((s) => s.stats);
   const history = useSimStore((s) => s.statsHistory);
   const [selected, setSelected] = useState<string[]>(['stats:population', 'avg:maxSpeed', 'avg:visionRadius']);
@@ -53,10 +53,12 @@ export function StatsPanel() {
   const trophic = stats?.trophic;
 
   return (
-    <div className="glass scroll-thin" style={{ padding: 16, overflowY: 'auto', height: '100%' }}>
-      <h3 style={{ margin: '0 0 12px', fontSize: 13, letterSpacing: 1, color: 'var(--text-dim)', textTransform: 'uppercase' }}>
-        Live Statistics
-      </h3>
+    <div className={embedded ? undefined : 'glass scroll-thin'} style={{ padding: 16, overflowY: embedded ? 'visible' : 'auto', height: embedded ? undefined : '100%' }}>
+      {!embedded && (
+        <h3 style={{ margin: '0 0 12px', fontSize: 13, letterSpacing: 1, color: 'var(--text-dim)', textTransform: 'uppercase' }}>
+          Live Statistics
+        </h3>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16, fontSize: 12 }}>
         <Stat label="Population" value={stats?.population ?? 0} />
