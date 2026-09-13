@@ -42,6 +42,10 @@ export function huntEfficiency(diet: number): number {
 export function hardShellEfficiency(size: number): number {
   return Math.max(0, Math.min(1, size - 0.6));
 }
+/** Scavenging a carcass draws on the same hunting/processing adaptation as active predation. */
+export function carcassEfficiency(diet: number): number {
+  return Math.max(0.15, huntEfficiency(diet));
+}
 
 export function senseAndDecide(
   org: Organism,

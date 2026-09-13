@@ -54,5 +54,6 @@ export function createOrganism(
     immortal: false,
     protectedFromThreats: false,
     name: `EVO-${id}`,
+    acclimatedTempCenter: genome.traits.tempToleranceCenter,
   };
 }

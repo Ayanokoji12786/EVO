@@ -4,6 +4,7 @@ import { worldToScreen } from './camera';
 import { TerrainTexture } from './terrainTexture';
 import { sunlightFactor } from '../environment/climate';
 import { geneticDistance } from '../genetics/genome';
+import { drawCreatureSprite, paletteFor } from './creatureSprite';
 
 export interface RenderOptions {
   selectedId: number | null;
@@ -13,6 +14,12 @@ export interface RenderOptions {
 function hashHue(n: number): number {
   return (n * 137.508) % 360;
 }
+
+const FOOD_COLORS: Record<string, string> = {
+  plant: '120,230,140',
+  hardShell: '124,200,255',
+  carcass: '210,90,70',
+};
 
 export function drawFrame(
   ctx: CanvasRenderingContext2D,
@@ -36,9 +43,9 @@ export function drawFrame(
   for (const food of world.food.items.values()) {
     const [sx, sy] = worldToScreen(camera, food.x, food.y);
     if (sx < -10 || sy < -10 || sx > viewportW + 10 || sy > viewportH + 10) continue;
-    const r = Math.max(1.2, (food.kind === 'hardShell' ? 3.2 : 2.2) * Math.max(0.6, camera.zoom));
+    const r = Math.max(1.2, (food.kind === 'plant' ? 2.2 : 3.2) * Math.max(0.6, camera.zoom));
     const glow = ctx.createRadialGradient(sx, sy, 0, sx, sy, r * 2.5);
-    const color = food.kind === 'hardShell' ? '124,200,255' : '120,230,140';
+    const color = FOOD_COLORS[food.kind] ?? FOOD_COLORS.plant;
     glow.addColorStop(0, `rgba(${color},0.9)`);
     glow.addColorStop(1, `rgba(${color},0)`);
     ctx.fillStyle = glow;
@@ -47,32 +54,37 @@ export function drawFrame(
     ctx.fill();
   }
 
-  // Organisms
+  // Organisms — rendered as small procedural pixel-art sprites (see creatureSprite.ts).
+  // Outfit color always follows species identity so distinct species read as visually
+  // distinct populations on the map; overlay modes add an informational halo behind the
+  // sprite rather than re-tinting it, so "what species is this" stays legible either way.
   const overlays = world.overlays;
   for (const org of world.organisms.values()) {
     if (!org.alive) continue;
     const [sx, sy] = worldToScreen(camera, org.x, org.y);
     if (sx < -30 || sy < -30 || sx > viewportW + 30 || sy > viewportH + 30) continue;
 
-    const radius = Math.max(1.5, org.genome.traits.size * 4 * camera.zoom);
-    let hue: number;
-    if (overlays.species) hue = hashHue(org.speciesId);
-    else if (overlays.genetics && options.selectedId) {
+    const speciesHue = hashHue(org.speciesId);
+    const heightPx = Math.max(4, org.genome.traits.size * 13 * camera.zoom);
+    const energyFrac = Math.max(0, Math.min(1, org.energy / org.maxEnergy));
+
+    let haloHue: number | null = null;
+    let haloAlpha = 0;
+    if (overlays.species) {
+      haloHue = speciesHue;
+      haloAlpha = 0.35;
+    } else if (overlays.genetics && options.selectedId) {
       const sel = world.organisms.get(options.selectedId);
       const dist = sel ? geneticDistance(sel.genome, org.genome) : 0;
-      hue = 220 - Math.min(1, dist * 2) * 220; // blue (similar) -> red (different)
-    } else hue = org.genome.traits.colorHue;
-
-    const energyFrac = Math.max(0, Math.min(1, org.energy / org.maxEnergy));
-    let lightness = overlays.energy ? 20 + energyFrac * 55 : 42 + energyFrac * 18;
-    const saturation = 55 + org.genome.traits.aggression * 30;
-    const alpha = 0.55 + org.genome.traits.camouflage * -0.25 + 0.35;
-
-    if (options.ancestryDescendantIds && !options.ancestryDescendantIds.has(org.id)) {
-      ctx.globalAlpha = 0.12;
-    } else {
-      ctx.globalAlpha = Math.max(0.35, Math.min(1, alpha));
+      haloHue = 220 - Math.min(1, dist * 2) * 220; // blue (similar) -> red (different)
+      haloAlpha = 0.4;
+    } else if (overlays.energy) {
+      haloHue = energyFrac * 110; // red (starving) -> green (thriving)
+      haloAlpha = 0.45;
     }
+
+    const dimmedByAncestry = options.ancestryDescendantIds !== null && !options.ancestryDescendantIds.has(org.id);
+    ctx.globalAlpha = dimmedByAncestry ? 0.12 : 1;
 
     if (overlays.vision || options.selectedId === org.id) {
       const fov = (org.genome.traits.fieldOfView * Math.PI) / 180;
@@ -81,30 +93,32 @@ export function drawFrame(
       ctx.moveTo(sx, sy);
       ctx.arc(sx, sy, visionR, org.heading - fov / 2, org.heading + fov / 2);
       ctx.closePath();
-      ctx.fillStyle = `hsla(${hue}, 70%, 70%, 0.06)`;
+      ctx.fillStyle = `hsla(${speciesHue}, 70%, 70%, 0.06)`;
       ctx.fill();
-      ctx.strokeStyle = `hsla(${hue}, 70%, 70%, 0.18)`;
+      ctx.strokeStyle = `hsla(${speciesHue}, 70%, 70%, 0.18)`;
       ctx.stroke();
     }
 
-    ctx.fillStyle = `hsl(${hue}, ${saturation}%, ${lightness}%)`;
-    ctx.beginPath();
-    ctx.arc(sx, sy, radius, 0, Math.PI * 2);
-    ctx.fill();
+    if (haloHue !== null) {
+      const glow = ctx.createRadialGradient(sx, sy, 0, sx, sy, heightPx * 0.9);
+      glow.addColorStop(0, `hsla(${haloHue}, 80%, 60%, ${haloAlpha})`);
+      glow.addColorStop(1, `hsla(${haloHue}, 80%, 60%, 0)`);
+      ctx.fillStyle = glow;
+      ctx.beginPath();
+      ctx.arc(sx, sy, heightPx * 0.9, 0, Math.PI * 2);
+      ctx.fill();
+    }
 
-    // heading nub
-    ctx.strokeStyle = `hsla(${hue}, ${saturation}%, ${Math.min(90, lightness + 25)}%, 0.9)`;
-    ctx.lineWidth = Math.max(1, radius * 0.35);
-    ctx.beginPath();
-    ctx.moveTo(sx, sy);
-    ctx.lineTo(sx + Math.cos(org.heading) * radius * 1.8, sy + Math.sin(org.heading) * radius * 1.8);
-    ctx.stroke();
+    const palette = paletteFor(org, speciesHue);
+    const moving = org.speed > 0.05;
+    const animPhase = org.id * 0.7 + world.tick * 0.35;
+    drawCreatureSprite(ctx, sx, sy, heightPx, org.heading, moving, animPhase, palette);
 
     if (org.infected) {
       ctx.strokeStyle = 'rgba(190,60,220,0.9)';
       ctx.lineWidth = 1.2;
       ctx.beginPath();
-      ctx.arc(sx, sy, radius + 2, 0, Math.PI * 2);
+      ctx.arc(sx, sy, heightPx * 0.65, 0, Math.PI * 2);
       ctx.stroke();
     }
 
@@ -112,7 +126,7 @@ export function drawFrame(
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 1.5;
       ctx.beginPath();
-      ctx.arc(sx, sy, radius + 4, 0, Math.PI * 2);
+      ctx.arc(sx, sy, heightPx * 0.7, 0, Math.PI * 2);
       ctx.stroke();
     }
     ctx.globalAlpha = 1;

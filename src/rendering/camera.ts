@@ -8,10 +8,14 @@ export interface Camera {
 }
 
 export function createCamera(worldSize: number, viewportW: number, viewportH: number): Camera {
+  // Don't force the whole world into view — a large ecosystem is meant to be explored by
+  // panning/zooming. Default to showing a fixed, readable span (creatures stay a visible
+  // size) and let the world extend beyond the initial viewport.
+  const targetSpan = Math.min(worldSize, 1400);
   return {
     x: worldSize / 2,
     y: worldSize / 2,
-    zoom: Math.min(viewportW, viewportH) / worldSize,
+    zoom: Math.min(viewportW, viewportH) / targetSpan,
     viewportW,
     viewportH,
     followId: null,

@@ -2,12 +2,13 @@
 
 **Evolution, one mutation at a time.**
 
-EVO is a browser-based artificial-life evolution simulator. Hundreds of organisms with
-their own genome (~20 heritable traits plus a small evolvable neural network) forage,
-flee, fight, and reproduce on a procedurally generated world. Nothing picks winners —
-whatever combination of traits leaves more surviving, reproducing descendants simply
-becomes more common. Watch it run, or step in as God and reshape the pressures that
-drive natural selection.
+EVO is a browser-based artificial-life evolution simulator. Hundreds to thousands of
+organisms — rendered as small procedural pixel-art creatures, not plain dots — with
+their own genome (~23 heritable traits plus a small evolvable neural network) forage,
+flee, fight, scavenge, and reproduce on a large procedurally generated world. Nothing
+picks winners — whatever combination of traits leaves more surviving, reproducing
+descendants simply becomes more common. Watch it run, or step in as God and reshape the
+pressures that drive natural selection.
 
 ## Running it
 
@@ -20,22 +21,32 @@ npm run test     # run the vitest suite
 
 ## What's implemented
 
-- **World**: procedurally generated terrain (grass/forest/desert/tundra/water/mountain/
-  fertile/toxic), day/night cycle, seasons, renewable food that grows back per-terrain,
-  temperature gradients.
-- **Genetics**: ~20 trade-off traits (size, speed, vision, metabolism, diet, aggression,
-  camouflage, temperature tolerance, litter size, mutation rate, ...) plus a small
+- **World**: large procedurally generated terrain (grass/forest/desert/tundra/water/
+  mountain/fertile/toxic), day/night cycle, seasons, renewable food that grows back
+  per-terrain, temperature gradients, and decaying scavengeable carcasses left behind by
+  every death (a minimal decomposer/scavenger trophic link).
+- **Creatures**: each organism is a procedurally generated pixel-art sprite (original
+  retro-game-style design, not any specific copyrighted artwork) — outfit color follows
+  species identity, headband color follows diet (herbivore/omnivore/carnivore), skin tone
+  follows climate adaptation, and it walks, turns, and flips to face its movement
+  direction.
+- **Genetics**: ~23 trade-off traits (size, speed, vision, metabolism, diet, aggression,
+  camouflage, temperature tolerance & plasticity, dispersal tendency, litter size,
+  mutation rate, an unlockable "wing development" complex trait, ...) plus a small
   evolvable feed-forward neural network that turns senses (nearest food/organism
   bearing & distance, energy, age, temperature) into actions (steer, throttle, eat,
-  reproduce, fight-or-flee).
+  reproduce, fight-or-flee). A NEAT-inspired (Stanley & Miikkulainen 2002) structural
+  mutation can prune or restore individual connections, evolving effective network
+  complexity over generations.
 - **Reproduction & mutation**: asexual reproduction with per-gene mutation (small drift,
   occasional large jumps), architected so sexual recombination could be added later.
-- **Natural selection**: emergent — no fitness function, just energy, death, and
-  reproduction.
+- **Natural selection**: emergent — no fitness function, just energy, death, crowding
+  (density-dependent carrying-capacity regulation), and reproduction.
 - **Speciation**: automatic, based on genetic divergence from a lineage's founder
   genome; a Tree of Life view visualizes species origin, divergence, and extinction.
-- **Live stats dashboard**: population, births/deaths, generation, per-trait averages,
-  selectable trait graphs.
+- **Live stats dashboard**: population, births/deaths, generation, per-trait averages and
+  standard deviations (a standing-genetic-variation proxy), trophic composition
+  (herbivore/omnivore/carnivore split), selectable trait graphs.
 - **Creature Inspector**: click any organism to see its genome, life stats, ancestry
   chain (with mutated genes highlighted), and follow it with the camera until it dies.
 - **Time controls**: pause/play/2×/5×/10×/max speed, periodic world snapshots, a Time
@@ -59,6 +70,31 @@ npm run test     # run the vitest suite
 
 See the in-app **About** panel for what's simplified and why runs can differ between
 sessions.
+
+## Scientific grounding
+
+A handful of mechanics are scoped, explicitly-documented nods to specific papers, not
+claims of full fidelity to them:
+
+1. Lenski, Ofria, Pennock & Adami (2003), *The Evolutionary Origin of Complex Features* —
+   motivates the `wingDevelopment` gene: pure upkeep cost below a threshold, so it can
+   only accumulate via drift until a lineage crosses into a functional payoff.
+2. Stanley & Miikkulainen (2002), *Evolving Neural Networks through Augmenting
+   Topologies (NEAT)* — motivates the brain's prune/restore structural mutation.
+3. Bocedi et al. (2014), *RangeShifter*, and 4. Landguth et al. (2017), *CDMetaPOP* —
+   motivate the heritable `dispersalTendency` gene (occasional long-range jumps).
+5–6. The evolvability-under-environmental-change / fluctuating-environments literature
+   (e.g. Canino-Koning et al.) — motivates the heritable `plasticity` gene (in-lifetime,
+   non-heritable acclimation of temperature preference).
+7–9. Elena et al. (2007); the low-impact-mutations-in-digital-organisms line of work; and
+   the resource/population-size/mutation-rate interplay literature — motivate exposing a
+   live per-trait standard-deviation stat, so the population-size/mutation-rate/food
+   relationship to standing genetic variation is observable rather than asserted.
+10. The ecological-network-fragility literature (e.g. Sanders et al., *Environmental
+   Change Makes Robust Ecological Networks Fragile*) — loosely motivates the
+   carcass/scavenging trophic link.
+
+The in-app About panel spells out exactly what is and isn't modeled from each.
 
 ## Architecture
 

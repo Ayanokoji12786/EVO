@@ -2,33 +2,55 @@ import { useState } from 'react';
 import { LineChart, Line, ResponsiveContainer, YAxis, XAxis, Tooltip } from 'recharts';
 import { useSimStore } from '../../state/simStore';
 import { TRAIT_SPECS } from '../../genetics/traits';
+import type { StatsSnapshot } from '../../simulation/types';
 
-const GRAPHABLE = [
-  { key: 'population', label: 'Population', fromStats: true },
-  { key: 'speciesCount', label: 'Species', fromStats: true },
-  { key: 'foodAbundance', label: 'Food abundance', fromStats: true },
-  ...TRAIT_SPECS.map((t) => ({ key: t.key, label: t.key, fromStats: false })),
+type GraphSource = 'stats' | 'avg' | 'stdDev';
+interface GraphOption {
+  id: string; // unique across all sources
+  key: string; // field name within its source
+  label: string;
+  source: GraphSource;
+}
+
+const GRAPHABLE: GraphOption[] = [
+  { id: 'stats:population', key: 'population', label: 'Population', source: 'stats' },
+  { id: 'stats:speciesCount', key: 'speciesCount', label: 'Species', source: 'stats' },
+  { id: 'stats:foodAbundance', key: 'foodAbundance', label: 'Food abundance', source: 'stats' },
+  ...TRAIT_SPECS.map((t) => ({ id: `avg:${t.key}`, key: t.key, label: t.key, source: 'avg' as GraphSource })),
+  ...['size', 'maxSpeed', 'visionRadius', 'mutationRate'].map((k) => ({
+    id: `stdDev:${k}`,
+    key: k,
+    label: `${k} (σ)`,
+    source: 'stdDev' as GraphSource,
+  })),
 ];
+
+function readValue(s: StatsSnapshot, opt: GraphOption): number {
+  if (opt.source === 'stats') return (s as unknown as Record<string, number>)[opt.key];
+  if (opt.source === 'stdDev') return s.stdDev[opt.key];
+  return s.avg[opt.key];
+}
 
 export function StatsPanel() {
   const stats = useSimStore((s) => s.stats);
   const history = useSimStore((s) => s.statsHistory);
-  const [selected, setSelected] = useState<string[]>(['population', 'maxSpeed', 'visionRadius']);
+  const [selected, setSelected] = useState<string[]>(['stats:population', 'avg:maxSpeed', 'avg:visionRadius']);
 
-  function toggle(key: string) {
-    setSelected((cur) => (cur.includes(key) ? cur.filter((k) => k !== key) : cur.length < 4 ? [...cur, key] : cur));
+  function toggle(id: string) {
+    setSelected((cur) => (cur.includes(id) ? cur.filter((k) => k !== id) : cur.length < 4 ? [...cur, id] : cur));
   }
 
   const chartData = history.slice(-300).map((s) => {
     const row: Record<string, number> = { tick: s.tick };
-    for (const key of selected) {
-      const spec = GRAPHABLE.find((g) => g.key === key);
-      row[key] = spec?.fromStats ? (s as unknown as Record<string, number>)[key] : s.avg[key];
+    for (const id of selected) {
+      const opt = GRAPHABLE.find((g) => g.id === id);
+      if (opt) row[id] = readValue(s, opt);
     }
     return row;
   });
 
   const colors = ['#5ee6c5', '#d98cff', '#ffb454', '#ff6b6b'];
+  const trophic = stats?.trophic;
 
   return (
     <div className="glass scroll-thin" style={{ padding: 16, overflowY: 'auto', height: '100%' }}>
@@ -49,6 +71,24 @@ export function StatsPanel() {
         <Stat label="Avg mutation rate" value={stats ? `${(stats.avg.mutationRate * 100).toFixed(1)}%` : '—'} />
       </div>
 
+      {trophic && (
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 6 }}>
+            Trophic composition (herbivore / omnivore / carnivore)
+          </div>
+          <div style={{ display: 'flex', height: 10, borderRadius: 5, overflow: 'hidden' }}>
+            <div style={{ width: `${trophic.herbivoreFraction * 100}%`, background: '#5ee68f' }} title="herbivore" />
+            <div style={{ width: `${trophic.omnivoreFraction * 100}%`, background: '#ffb454' }} title="omnivore" />
+            <div style={{ width: `${trophic.carnivoreFraction * 100}%`, background: '#ff6b6b' }} title="carnivore" />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-dim)', marginTop: 3, fontFamily: 'var(--mono)' }}>
+            <span>{(trophic.herbivoreFraction * 100).toFixed(0)}%</span>
+            <span>{(trophic.omnivoreFraction * 100).toFixed(0)}%</span>
+            <span>{(trophic.carnivoreFraction * 100).toFixed(0)}%</span>
+          </div>
+        </div>
+      )}
+
       <div style={{ height: 180, marginBottom: 12 }}>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={chartData}>
@@ -58,8 +98,8 @@ export function StatsPanel() {
               contentStyle={{ background: '#10141c', border: '1px solid var(--border-strong)', fontSize: 11 }}
               labelFormatter={(v) => `tick ${v}`}
             />
-            {selected.map((key, i) => (
-              <Line key={key} type="monotone" dataKey={key} stroke={colors[i % colors.length]} dot={false} strokeWidth={1.6} isAnimationActive={false} />
+            {selected.map((id, i) => (
+              <Line key={id} type="monotone" dataKey={id} stroke={colors[i % colors.length]} dot={false} strokeWidth={1.6} isAnimationActive={false} />
             ))}
           </LineChart>
         </ResponsiveContainer>
@@ -69,10 +109,10 @@ export function StatsPanel() {
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
         {GRAPHABLE.map((g) => (
           <button
-            key={g.key}
-            className={`btn ${selected.includes(g.key) ? 'active' : ''}`}
+            key={g.id}
+            className={`btn ${selected.includes(g.id) ? 'active' : ''}`}
             style={{ padding: '4px 8px', fontSize: 10 }}
-            onClick={() => toggle(g.key)}
+            onClick={() => toggle(g.id)}
           >
             {g.label}
           </button>

@@ -19,6 +19,7 @@ export function reproduceAsexual(
   settings: MutationSettings,
   tick: number,
   allocateId: () => number,
+  unlockedGenes?: ReadonlySet<string>,
 ): Organism[] {
   const t = parent.genome.traits;
   const litterSize = Math.max(1, Math.round(t.offspringCount));
@@ -30,7 +31,7 @@ export function reproduceAsexual(
 
   const children: Organism[] = [];
   for (let i = 0; i < litterSize; i++) {
-    const childGenome = mutateGenome(parent.genome, rng, settings);
+    const childGenome = mutateGenome(parent.genome, rng, settings, unlockedGenes);
     const angle = rng.range(0, Math.PI * 2);
     const dist = rng.range(4, 14);
     const child = createOrganism(
@@ -44,6 +45,7 @@ export function reproduceAsexual(
     child.energy = Math.min(child.maxEnergy, Math.max(1, energyPerChild));
     child.maxEnergy = deriveMaxEnergy(childGenome);
     child.protectedFromThreats = parent.protectedFromThreats;
+    child.acclimatedTempCenter = childGenome.traits.tempToleranceCenter;
     parent.offspringIds.push(child.id);
     children.push(child);
   }

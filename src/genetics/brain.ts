@@ -94,6 +94,17 @@ export function brainForward(weights: BrainWeights, inputs: Float32Array): Float
   return scratchOutputs;
 }
 
+const PRUNE_TOGGLE_RATE_FACTOR = 0.15;
+
+/**
+ * Mutates a fixed-size weight buffer, plus a NEAT-inspired (Stanley & Miikkulainen 2002)
+ * "prune/restore" structural mutation: at low probability, a connection is silenced to
+ * exactly 0 or a silenced one is reactivated with a fresh random weight. This is a scoped
+ * stand-in for full topology-augmenting NEAT (variable-size genomes with historical
+ * markings and crossover) — the network's effective connectivity still evolves and can
+ * grow or shrink over generations, but within one fixed-size, easy-to-mutate/clone array
+ * rather than a dynamically resizable graph.
+ */
 export function mutateBrain(weights: BrainWeights, rng: RNG, rate: number, strength: number): BrainWeights {
   const out = new Float32Array(weights.length);
   for (let i = 0; i < weights.length; i++) {
@@ -101,6 +112,9 @@ export function mutateBrain(weights: BrainWeights, rng: RNG, rate: number, stren
     if (rng.bool(rate)) {
       v += rng.gaussian(0, strength);
       if (rng.bool(0.05)) v += rng.gaussian(0, strength * 6); // rare large jump
+    }
+    if (rng.bool(rate * PRUNE_TOGGLE_RATE_FACTOR)) {
+      v = v === 0 ? rng.gaussian(0, strength * 2) : 0;
     }
     out[i] = v;
   }

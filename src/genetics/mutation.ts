@@ -17,17 +17,31 @@ export const DEFAULT_MUTATION_SETTINGS: MutationSettings = {
   neuralMutationRate: 0.06,
 };
 
+/** Traits that stay frozen at their init value (0) until God Mode unlocks the named gene. */
+const GATED_TRAITS: Record<string, string> = {
+  wingDevelopment: 'flight',
+};
+
+const EMPTY_UNLOCKED: ReadonlySet<string> = new Set();
+
 /**
  * Produces a mutated copy of a parent genome. Most mutations are small
  * gaussian drift around the parent's value; a small fraction are large
  * jumps, occasionally landing far from the parent (the "dramatic mutation"
  * case called out in the spec).
  */
-export function mutateGenome(parent: Genome, rng: RNG, settings: MutationSettings): Genome {
+export function mutateGenome(
+  parent: Genome,
+  rng: RNG,
+  settings: MutationSettings,
+  unlockedGenes: ReadonlySet<string> = EMPTY_UNLOCKED,
+): Genome {
   const child = cloneGenome(parent);
   const baseRate = clampTrait('mutationRate', parent.traits.mutationRate) * settings.mutationRateMultiplier;
 
   for (const spec of TRAIT_SPECS) {
+    const requiredUnlock = GATED_TRAITS[spec.key];
+    if (requiredUnlock && !unlockedGenes.has(requiredUnlock)) continue;
     if (!rng.bool(baseRate)) continue;
     const range = spec.max - spec.min;
     const small = rng.gaussian(0, range * 0.04 * settings.mutationStrengthMultiplier);

@@ -56,6 +56,72 @@ export function About({ onClose }: { onClose: () => void }) {
           is also why the Experiment Mode's "Split Timeline" holds the seed constant and changes exactly one
           variable: it isolates that variable's effect from ordinary run-to-run noise.
         </p>
+
+        <h3>Scientific basis</h3>
+        <p>
+          A few mechanics are direct, but deliberately scoped, nods to specific findings in the evolutionary-
+          biology and digital-evolution literature. None of these are claimed as faithful reproductions of the
+          full model in the cited paper — each is a small, testable mechanic inspired by the paper's core idea.
+        </p>
+        <ul>
+          <li>
+            <strong>Connection pruning/restoration in the neural "brain"</strong> (Stanley &amp; Miikkulainen, 2002,
+            <em> Evolving Neural Networks through Augmenting Topologies</em>): NEAT evolves both weights and
+            network topology, starting minimal and complexifying over generations. EVO's brain keeps a fixed-size
+            weight array (not a growable graph with historical markings/crossover like real NEAT) but a
+            structural mutation can silence a connection to exactly zero or reactivate a silenced one — effective
+            connectivity still evolves, just within a bounded array rather than a dynamic one.
+          </li>
+          <li>
+            <strong>The <code>wingDevelopment</code> gene</strong> (Lenski, Ofria, Pennock &amp; Adami, 2003,
+            <em> The Evolutionary Origin of Complex Features</em>): that paper evolved complex digital-organism
+            logic functions through neutral/near-neutral stepping stones rather than direct selection the whole
+            way. Here, an unlockable "flight" trait provides zero benefit — pure upkeep cost — below a threshold,
+            so it can only accumulate via drift/linkage until a lineage crosses into the payoff region. It is a
+            single-trait illustration of the idea, not a reproduction of Avida's logic-gate evolution.
+          </li>
+          <li>
+            <strong>Active dispersal</strong> (Bocedi et al., 2014, <em>RangeShifter</em>; Landguth et al., 2017,
+            <em> CDMetaPOP</em>): both are full individual-based, spatially-explicit landscape-genetics platforms
+            modeling dispersal kernels and gene flow across habitat patches. EVO takes one idea from that family —
+            a heritable <code>dispersalTendency</code> gene that occasionally triggers a long-range jump instead
+            of local wandering — without patch-based connectivity graphs or explicit gene-flow tracking between
+            named populations.
+          </li>
+          <li>
+            <strong>Phenotypic plasticity</strong> (Canino-Koning, Wiser &amp; Ofria, 2019,
+            <em> Fluctuating Environments Select for Short-Term Phenotypic Variation</em>; see also the
+            evolvability-under-environmental-change literature): a heritable <code>plasticity</code> gene lets an
+            organism's acclimated temperature preference drift toward locally experienced conditions within its
+            own lifetime, at a rate the gene controls. The acclimated state itself is never inherited — only the
+            capacity to acclimate is.
+          </li>
+          <li>
+            <strong>Scavenging / carcasses</strong> (loosely motivated by the ecological-network-fragility
+            literature, e.g. Sanders et al., 2016, <em>Environmental Change Makes Robust Ecological Networks
+            Fragile</em>): every death leaves a body-mass-sized, decaying food item any organism can eat (more
+            efficiently if its diet leans carnivorous). This is a minimal decomposer/scavenger trophic link, not a
+            modeled multi-species interaction network — EVO does not build or analyze an explicit food web graph.
+          </li>
+          <li>
+            <strong>Population size, mutation rate &amp; standing genetic variation</strong> (Elena, Wilke, Ofria
+            &amp; Lenski, 2007, <em>Effects of Population Size and Mutation Rate on the Evolution of Mutational
+            Robustness</em>; Misevic et al., <em>The Effects of Low-Impact Mutations in Digital Organisms</em>;
+            Frank et al., 2021, <em>An Interplay of Resource Availability, Population Size and Mutation Rate</em>):
+            these papers found that smaller populations and higher mutation rates tend to erode standing genetic
+            variation and mutational robustness, while abundant resources and larger populations sustain more of
+            it. EVO exposes a live per-trait standard-deviation stat so you can watch this relationship for
+            yourself using God Mode's population/mutation-rate/food controls — the simulation does not hard-code
+            the relationship, it just gives you the dial and the readout.
+          </li>
+        </ul>
+        <p style={{ color: 'var(--text-dim)', fontSize: 12 }}>
+          Not modeled: Lenski/Avida-style evolvable logic-gate tasks, full NEAT crossover with historical gene
+          markings, RangeShifter/CDMetaPOP's explicit habitat-patch connectivity and gene-flow statistics, and any
+          explicit food-web/interaction-network graph or fragility analysis. These are genuinely different (and
+          in several cases much larger) pieces of software; EVO borrows one mechanic or one measurable
+          relationship from each rather than reimplementing the paper.
+        </p>
       </div>
     </Overlay>
   );

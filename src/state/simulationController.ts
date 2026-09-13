@@ -161,7 +161,7 @@ export class SimulationController {
     for (const org of this.world.organisms.values()) {
       if (!org.alive) continue;
       const [ox, oy] = worldToScreen(this.camera, org.x, org.y);
-      const r = Math.max(4, org.genome.traits.size * 4 * this.camera.zoom) + 3;
+      const r = Math.max(6, org.genome.traits.size * 6.5 * this.camera.zoom) + 4;
       const d = Math.hypot(ox - sx, oy - sy);
       if (d <= r && d < bestDist) {
         bestDist = d;

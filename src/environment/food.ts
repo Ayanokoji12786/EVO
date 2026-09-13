@@ -64,6 +64,30 @@ export function removeFood(field: FoodField, id: number) {
   field.items.delete(id);
 }
 
+/** Spawns a scavengeable carcass (nutrient cycling / decomposer trophic link). */
+export function spawnCarcass(field: FoodField, x: number, y: number, energy: number, expiresAtTick: number) {
+  const item: FoodItem = {
+    id: field.nextId++,
+    x,
+    y,
+    energy,
+    maxEnergy: energy,
+    kind: 'carcass',
+    growth: 1,
+    expiresAtTick,
+  };
+  field.items.set(item.id, item);
+}
+
+/** Removes carcasses that decayed before being scavenged. */
+export function decayCarcasses(field: FoodField, tick: number) {
+  for (const [id, item] of field.items) {
+    if (item.kind === 'carcass' && item.expiresAtTick !== undefined && tick >= item.expiresAtTick) {
+      field.items.delete(id);
+    }
+  }
+}
+
 export function totalFoodEnergy(field: FoodField): number {
   let total = 0;
   for (const f of field.items.values()) total += f.energy;

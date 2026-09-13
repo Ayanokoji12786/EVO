@@ -1,5 +1,8 @@
 import type { Organism } from './types';
 import type { WorldState } from './worldState';
+import { spawnCarcass } from '../environment/food';
+
+const CARCASS_DECAY_TICKS = 150;
 
 export interface GenealogyRecord {
   id: number;
@@ -27,6 +30,12 @@ export function recordBirth(state: WorldState, org: Organism) {
   });
 }
 
+/**
+ * Central death path for every organism, natural or divine. Also leaves a scavengeable
+ * carcass behind (nutrient cycling / decomposer link — see the ecological-network-fragility
+ * literature on trophic connectivity), sized by body mass rather than remaining energy so
+ * even a starved individual still returns some biomass to the food web.
+ */
 export function killOrganism(state: WorldState, org: Organism, cause: string) {
   if (!org.alive) return;
   org.alive = false;
@@ -37,6 +46,7 @@ export function killOrganism(state: WorldState, org: Organism, cause: string) {
     rec.deathTick = state.tick;
     rec.causeOfDeath = cause;
   }
+  spawnCarcass(state.food, org.x, org.y, 14 * org.genome.traits.size, state.tick + CARCASS_DECAY_TICKS);
 }
 
 /** Walks parentId pointers up to `depth` generations (e.g. grandparent -> parent -> self). */

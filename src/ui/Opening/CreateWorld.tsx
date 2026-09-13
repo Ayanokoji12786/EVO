@@ -7,19 +7,21 @@ function randomSeed(): string {
 
 export function CreateWorld({ onStart }: { onStart: (config: WorldConfig) => void }) {
   const [seed, setSeed] = useState(randomSeed());
-  const [population, setPopulation] = useState(250);
+  const [population, setPopulation] = useState(400);
   const [customPop, setCustomPop] = useState(false);
   const [foodAbundance, setFoodAbundance] = useState(1);
   const [mutationRate, setMutationRate] = useState(0.04);
   const [climate, setClimate] = useState<WorldConfig['climate']>('temperate');
-  const [worldSize, setWorldSize] = useState(1800);
+  const [worldSize, setWorldSize] = useState(3200);
   const [advanced, setAdvanced] = useState(false);
 
   function buildConfig(): WorldConfig {
     return {
       seed,
       worldSize,
-      gridResolution: 96,
+      // Keep terrain feature density roughly constant as the world grows, instead of a
+      // fixed grid stretching into coarser, blander biome patches at large sizes.
+      gridResolution: Math.round(Math.max(64, Math.min(200, worldSize / 18))),
       initialPopulation: population,
       foodAbundance,
       mutationRate,
@@ -56,7 +58,7 @@ export function CreateWorld({ onStart }: { onStart: (config: WorldConfig) => voi
           <label className="field">
             Population
             <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-              {[100, 250, 500].map((p) => (
+              {[200, 400, 800].map((p) => (
                 <button
                   key={p}
                   className={`btn ${!customPop && population === p ? 'active' : ''}`}
@@ -75,9 +77,9 @@ export function CreateWorld({ onStart }: { onStart: (config: WorldConfig) => voi
                 <input
                   type="number"
                   min={10}
-                  max={3000}
+                  max={4000}
                   value={population}
-                  onChange={(e) => setPopulation(Math.max(10, Math.min(3000, Number(e.target.value))))}
+                  onChange={(e) => setPopulation(Math.max(10, Math.min(4000, Number(e.target.value))))}
                   style={{ width: 90 }}
                 />
               )}
@@ -96,7 +98,7 @@ export function CreateWorld({ onStart }: { onStart: (config: WorldConfig) => voi
               </label>
               <label className="field">
                 World size <span className="value">{worldSize} units</span>
-                <input type="range" min={800} max={3600} step={100} value={worldSize} onChange={(e) => setWorldSize(Number(e.target.value))} />
+                <input type="range" min={1200} max={6000} step={200} value={worldSize} onChange={(e) => setWorldSize(Number(e.target.value))} />
               </label>
               <label className="field">
                 Climate

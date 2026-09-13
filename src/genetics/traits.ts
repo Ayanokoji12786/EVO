@@ -32,6 +32,33 @@ export const TRAIT_SPECS: TraitSpec[] = [
   { key: 'colorHue', min: 0, max: 360, initMin: 0, initMax: 360, description: 'Visual hue; drifts with mutation (cosmetic + lineage marker).' },
   { key: 'tempToleranceCenter', min: -1, max: 1, initMin: -0.6, initMax: 0.6, description: 'Preferred normalized temperature.' },
   { key: 'tempToleranceRange', min: 0.15, max: 1.4, initMin: 0.3, initMax: 0.7, description: 'Width of comfortable temperature band. Wider = generalist, costs baseline energy.' },
+  {
+    key: 'plasticity',
+    min: 0,
+    max: 1,
+    initMin: 0.05,
+    initMax: 0.4,
+    description:
+      'How fast temperature preference acclimates within a lifetime toward locally experienced conditions (phenotypic plasticity). High plasticity hedges against fluctuating environments; low plasticity commits to a fixed strategy that is cheaper when conditions are stable.',
+  },
+  {
+    key: 'dispersalTendency',
+    min: 0,
+    max: 1,
+    initMin: 0,
+    initMax: 0.25,
+    description:
+      'Probability per day of an active long-distance dispersal jump instead of local movement — colonizes new terrain and avoids local crowding/inbreeding, at an energy cost.',
+  },
+  {
+    key: 'wingDevelopment',
+    min: 0,
+    max: 1,
+    initMin: 0,
+    initMax: 0,
+    description:
+      "A complex trait that only pays off past a threshold (~0.6): partial development is pure upkeep cost with no benefit, so it can only accumulate via drift or linkage until a lineage crosses the threshold and gains a real evasion/movement-efficiency payoff. Models how complex features evolve through non-adaptive 'stepping stones' rather than direct selection the whole way (Lenski et al. 2003). Stays at 0 unless God Mode unlocks 'flight'.",
+  },
 ];
 
 export const TRAIT_KEYS = TRAIT_SPECS.map((t) => t.key);

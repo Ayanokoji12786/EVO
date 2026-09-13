@@ -3,12 +3,12 @@ import type { WorldConfig, Organism } from './types';
 import { DEFAULT_LAWS } from './types';
 import type { WorldState } from './worldState';
 import { generateTerrain } from '../environment/terrain';
-import { createFoodField, rebuildFoodHash, stepFoodGrowth, removeFood } from '../environment/food';
+import { createFoodField, rebuildFoodHash, stepFoodGrowth, removeFood, decayCarcasses } from '../environment/food';
 import { createClimate, stepClimate, seasonalFactor } from '../environment/climate';
 import { randomGenome } from '../genetics/genome';
 import { DEFAULT_MUTATION_SETTINGS } from '../genetics/mutation';
 import { createOrganism, allocateOrganismId } from '../organisms/organism';
-import { senseAndDecide, plantEfficiency, huntEfficiency, hardShellEfficiency } from '../organisms/behavior';
+import { senseAndDecide, plantEfficiency, huntEfficiency, hardShellEfficiency, carcassEfficiency } from '../organisms/behavior';
 import { reproduceAsexual } from '../genetics/inheritance';
 import { SpeciesRegistry } from '../species/classification';
 import { EventLog } from '../history/eventLog';
@@ -117,6 +117,7 @@ export function stepWorld(state: WorldState, dt: number) {
   const seasonGrowth = 0.5 + season; // winter ~0.5x, summer ~1.5x
   stepFoodGrowth(state.food, state.terrain, state.config.worldSize, state.config.foodAbundance, state.climate.rainfall, seasonGrowth, state.laws, state.rng, dt);
 
+  decayCarcasses(state.food, state.tick);
   stepStorms(state, dt);
   stepDisease(state, living, dt);
 
@@ -124,6 +125,13 @@ export function stepWorld(state: WorldState, dt: number) {
   const resolvedAttackers = new Set<number>();
   const killedThisTick = new Set<number>();
   const newborns: Organism[] = [];
+
+  // Density-dependent regulation (classic logistic-growth carrying capacity): once the
+  // population exceeds the world's carrying capacity, crowding (competition, waste,
+  // disease pressure) adds extra upkeep cost for everyone, scaling with the overshoot.
+  // This is a population-level feedback, not a hard cap — well-adapted individuals still
+  // out-survive others under the same crowding stress.
+  const crowding = Math.max(0, living.length / state.laws.carryingCapacity - 1);
 
   for (const org of living) {
     if (!org.alive) continue;
@@ -143,18 +151,50 @@ export function stepWorld(state: WorldState, dt: number) {
     org.y = Math.max(0, Math.min(state.config.worldSize, org.y + dy));
     org.distanceTravelled += Math.hypot(dx, dy);
 
+    // Active dispersal (RangeShifter / CDMetaPOP-inspired): an occasional long-range jump
+    // rather than pure local diffusion, letting a lineage colonize distant terrain or
+    // escape local crowding. Costs energy proportional to the distance covered.
+    let dispersed = false;
+    if (t.dispersalTendency > 0 && state.rng.bool((t.dispersalTendency * dt) / TICKS_PER_DAY)) {
+      const jumpDist = state.rng.range(t.visionRadius * 2, state.config.worldSize * 0.25);
+      const jumpAngle = state.rng.range(0, Math.PI * 2);
+      org.x = Math.max(0, Math.min(state.config.worldSize, org.x + Math.cos(jumpAngle) * jumpDist));
+      org.y = Math.max(0, Math.min(state.config.worldSize, org.y + Math.sin(jumpAngle) * jumpDist));
+      org.distanceTravelled += jumpDist;
+      dispersed = true;
+    }
+
     // Energy costs
     const metabolism = t.metabolism;
     let cost = 0;
     cost += ENERGY.baseUpkeep * (0.4 + ENERGY.sizeUpkeepFactor * t.size) * metabolism * dt;
-    cost += ENERGY.movementCostFactor * (org.speed * org.speed) * t.size * 0.03 * metabolism * state.laws.movementEnergyCost * dt;
+    let movementCost = ENERGY.movementCostFactor * (org.speed * org.speed) * t.size * 0.03 * metabolism * state.laws.movementEnergyCost * dt;
+    // Wing development (Lenski et al. 2003 "stepping stone" complex-feature model): tissue
+    // upkeep is paid from the very first sliver of development, but the movement-efficiency
+    // payoff only kicks in once it crosses a functional threshold — most of the trait's
+    // range is pure cost, which is why it can only accumulate via drift/linkage at first.
+    const wing = t.wingDevelopment ?? 0;
+    const WING_THRESHOLD = 0.6;
+    cost += wing * 0.012 * dt;
+    if (wing > WING_THRESHOLD) {
+      movementCost *= 1 - ((wing - WING_THRESHOLD) / (1 - WING_THRESHOLD)) * 0.3;
+    }
+    cost += movementCost;
+    cost += dispersed ? ENERGY.movementCostFactor * t.size * 0.4 : 0;
     cost += ENERGY.visionCostFactor * (t.visionRadius / 150) * (t.fieldOfView / 180) * 0.02 * state.laws.visionEnergyCost * dt;
     cost += ENERGY.camouflageCostFactor * t.camouflage * 0.015 * dt;
 
+    // Phenotypic plasticity (Canino-Koning et al. 2019): temperature preference acclimates
+    // toward locally experienced conditions during the organism's own lifetime, at a rate
+    // set by the heritable `plasticity` gene. Only the acclimated *state* is non-heritable —
+    // the *capacity* to acclimate (the gene itself) is still under selection.
     const localTempInput = decisionLocalTemp(state, org);
-    const tempDiff = Math.max(0, Math.abs(localTempInput - t.tempToleranceCenter) - t.tempToleranceRange);
+    org.acclimatedTempCenter += (localTempInput - org.acclimatedTempCenter) * Math.min(1, t.plasticity * dt * 0.05);
+    const tempDiff = Math.max(0, Math.abs(localTempInput - org.acclimatedTempCenter) - t.tempToleranceRange);
     cost += ENERGY.tempStressFactor * tempDiff * tempDiff * dt;
     cost += (t.tempToleranceRange - 0.15) * 0.01 * dt; // wide tolerance has a small baseline upkeep
+    cost += t.plasticity * 0.004 * dt; // maintaining acclimation machinery has a small baseline cost
+    cost += crowding * 0.4 * metabolism * dt; // density-dependent stress once past carrying capacity
 
     org.energy -= cost;
     org.age += dt / TICKS_PER_DAY;
@@ -164,7 +204,10 @@ export function stepWorld(state: WorldState, dt: number) {
     if (decision.wantsToEat && decision.nearestFoodId !== null && !consumedFood.has(decision.nearestFoodId)) {
       const foodItem = state.food.items.get(decision.nearestFoodId);
       if (foodItem) {
-        let efficiency = foodItem.kind === 'hardShell' ? hardShellEfficiency(t.size) : plantEfficiency(t.diet);
+        let efficiency: number;
+        if (foodItem.kind === 'hardShell') efficiency = hardShellEfficiency(t.size);
+        else if (foodItem.kind === 'carcass') efficiency = carcassEfficiency(t.diet);
+        else efficiency = plantEfficiency(t.diet);
         const gained = foodItem.energy * efficiency * ENERGY.eatGainMultiplier * state.laws.foodEnergyGain;
         org.energy = Math.min(org.maxEnergy, org.energy + gained);
         org.foodEaten++;
@@ -200,7 +243,7 @@ export function stepWorld(state: WorldState, dt: number) {
 
     // Reproduction
     if (decision.wantsToReproduce && org.alive) {
-      const kids = reproduceAsexual(org, state.rng, state.mutationSettings, state.tick, () => allocateOrganismId(state));
+      const kids = reproduceAsexual(org, state.rng, state.mutationSettings, state.tick, () => allocateOrganismId(state), state.unlockedGenes);
       for (const kid of kids) {
         kid.speciesId = state.species.classifyNewborn(kid, org.speciesId, state.tick);
         newborns.push(kid);
