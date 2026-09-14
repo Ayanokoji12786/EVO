@@ -298,6 +298,7 @@ export class SimulationController {
       mutatedFromParent: mutated,
       alive: org.alive,
       causeOfDeath: org.causeOfDeath,
+      protectedFromThreats: org.protectedFromThreats,
     };
   }
 

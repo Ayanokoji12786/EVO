@@ -11,7 +11,7 @@ const CORE_TRAITS = [
   { key: 'tempToleranceRange', label: 'Cold Tolerance', range: [.15, 1.4] },
 ] as const;
 
-export function CreatureInspector({ controller }: { controller: SimulationController }) {
+export function CreatureInspector({ controller, onAction }: { controller: SimulationController; onAction?: (message: string) => void }) {
   const inspector = useSimStore((s) => s.inspector);
   const followId = useSimStore((s) => s.followId);
   const godMode = useSimStore((s) => s.godMode);
@@ -29,7 +29,7 @@ export function CreatureInspector({ controller }: { controller: SimulationContro
     <section className="creature-inspector hud-panel" aria-label={`Creature inspector for ${inspector.name}`}>
       <header className="creature-inspector-header">
         <div>
-          <h2>{inspector.name}</h2>
+          <h2>{inspector.name}{inspector.protectedFromThreats && <span className="creature-protected-badge" title="Protected from threats">🛡</span>}</h2>
           <p>{inspector.speciesName}</p>
         </div>
         <button className="creature-close" onClick={() => controller.select(null)} aria-label="Close creature inspector">×</button>
@@ -71,9 +71,9 @@ export function CreatureInspector({ controller }: { controller: SimulationContro
           <DetailRow label="Distance travelled" value={`${inspector.distanceTravelled} m`} />
           <DetailRow label="Predation / escapes" value={`${inspector.kills} / ${inspector.escapes}`} />
           {godMode && inspector.alive && <div className="creature-divine-actions">
-            <button onClick={() => controller.god.bless(controller.world, inspector.id)}>BLESS</button>
-            <button onClick={() => controller.god.forceMutate(controller.world, inspector.id)}>MUTATE</button>
-            <button onClick={() => controller.god.protectLineage(controller.world, inspector.id)}>PROTECT</button>
+            <button onClick={() => { controller.god.bless(controller.world, inspector.id); onAction?.(`✨ ${inspector.name} has been blessed — energy and health restored.`); }}>BLESS</button>
+            <button onClick={() => { controller.god.forceMutate(controller.world, inspector.id); onAction?.(`🧬 A mutation has been forced in ${inspector.name}.`); }}>MUTATE</button>
+            <button className={inspector.protectedFromThreats ? 'is-active' : ''} onClick={() => { controller.god.protectLineage(controller.world, inspector.id); onAction?.(`🛡️ ${inspector.name}'s lineage is now protected from threats.`); }}>{inspector.protectedFromThreats ? 'PROTECTED ✓' : 'PROTECT'}</button>
           </div>}
         </div>
       </>}

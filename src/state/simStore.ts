@@ -39,6 +39,7 @@ export interface InspectorData {
   mutatedFromParent: string[];
   alive: boolean;
   causeOfDeath: string | null;
+  protectedFromThreats: boolean;
 }
 
 interface SimStoreState {

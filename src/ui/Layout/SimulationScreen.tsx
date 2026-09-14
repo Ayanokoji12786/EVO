@@ -143,6 +143,7 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
       setPending(null);
       setRadialAnchor(null);
       setGodInitialLayer(null);
+      setModal(null);
       return;
     }
     if (tool === 'tools') { setActiveRailTool('tools'); openModal('experiment'); return; }
@@ -204,7 +205,7 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
 
         <CompassBiome controller={controller} tempC={worldTempC} />
         <BottomTimeline controller={controller} onOpen={() => openModal('time')} />
-        {inspector && modal === null && <div className="creature-inspector-slot"><CreatureInspector controller={controller} /></div>}
+        {inspector && modal === null && <div className="creature-inspector-slot"><CreatureInspector controller={controller} onAction={showDivineToast} /></div>}
 
         <DeathToast />
 
