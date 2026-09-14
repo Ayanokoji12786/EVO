@@ -49,9 +49,9 @@ export function TopBar({
       </div>
 
       <div className="sim-vitals" aria-label="Current world vitals">
-        <Readout label="Generation" value={stats?.generation ?? 0} />
-        <Readout label="Population" value={(stats?.population ?? 0).toLocaleString()} />
-        <Readout label="Biodiversity" value={stats?.speciesCount ?? 0} />
+        <Readout icon="🌿" label="Generation" value={stats?.generation ?? 0} />
+        <Readout icon="👥" label="Population" value={(stats?.population ?? 0).toLocaleString()} />
+        <Readout icon="🧬" label="Biodiversity" value={stats?.speciesCount ?? 0} />
       </div>
 
       <div className="time-controls sim-time-controls" aria-label="Simulation speed">
@@ -157,11 +157,14 @@ export function TopBar({
   );
 }
 
-function Readout({ label, value }: { label: string; value: string | number }) {
+function Readout({ icon, label, value }: { icon: string; label: string; value: string | number }) {
   return (
     <div className="readout" style={{ flexShrink: 0 }}>
-      <div className="readout-value">{value}</div>
-      <div className="readout-label">{label}</div>
+      <span className="readout-icon" aria-hidden="true">{icon}</span>
+      <div>
+        <div className="readout-value">{value}</div>
+        <div className="readout-label">{label}</div>
+      </div>
     </div>
   );
 }

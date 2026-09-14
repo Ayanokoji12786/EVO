@@ -10,16 +10,25 @@ type WorldBootSequenceProps = {
   onComplete: () => void;
 };
 
+// The five milestones shown as a persistent breadcrumb beneath the progress bar —
+// stageIndex maps each timed frame onto one of these so the closing frames ("life finds
+// a way") can keep the last milestone highlighted rather than inventing a sixth item.
+const GENERATION_STAGES = [
+  'GENERATING WORLD',
+  'ASSEMBLING FIRST GENOMES',
+  'ESTABLISHING LAWS OF NATURE',
+  'INTRODUCING VARIATION',
+  'INITIALIZING ECOSYSTEM',
+] as const;
+
 const BIRTH_STAGES = [
-  { at: 0, label: '' },
-  { at: 550, label: 'INITIALIZING PRIMORDIAL CONDITIONS' },
-  { at: 1300, label: 'GENERATING WORLD' },
-  { at: 2100, label: 'ASSEMBLING FIRST GENOMES' },
-  { at: 2900, label: 'ESTABLISHING LAWS OF NATURE' },
-  { at: 3700, label: 'INTRODUCING VARIATION' },
-  { at: 4550, label: 'INITIALIZING ECOSYSTEM' },
-  { at: 5500, label: 'LIFE FINDS A WAY.' },
-  { at: 6600, label: 'WORLD IS ALIVE' },
+  { at: 0, label: 'GENERATING WORLD', stageIndex: 0 },
+  { at: 1000, label: 'ASSEMBLING FIRST GENOMES', stageIndex: 1 },
+  { at: 2000, label: 'ESTABLISHING LAWS OF NATURE', stageIndex: 2 },
+  { at: 3000, label: 'INTRODUCING VARIATION', stageIndex: 3 },
+  { at: 4000, label: 'INITIALIZING ECOSYSTEM', stageIndex: 4 },
+  { at: 5100, label: 'LIFE FINDS A WAY.', stageIndex: 4 },
+  { at: 6200, label: 'WORLD IS ALIVE', stageIndex: 4 },
 ] as const;
 
 const LIFE_POINTS = [
@@ -48,7 +57,7 @@ function FirstCellSequence({ seed, onComplete }: Pick<WorldBootSequenceProps, 's
 
   useEffect(() => {
     const timers = BIRTH_STAGES.slice(1).map(({ at }, index) => window.setTimeout(() => setStage(index + 1), at * timing));
-    timers.push(window.setTimeout(() => finish(), 8250 * timing));
+    timers.push(window.setTimeout(() => finish(), 7400 * timing));
     return () => timers.forEach(window.clearTimeout);
   }, [finish, timing]);
   const current = BIRTH_STAGES[stage] ?? BIRTH_STAGES.at(-1)!;
@@ -63,14 +72,6 @@ function FirstCellSequence({ seed, onComplete }: Pick<WorldBootSequenceProps, 's
           <i key={index} style={{ '--x': `${x * 34}vw`, '--y': `${y * 34}vw`, '--delay': `${index * 43}ms` } as CSSProperties} />
         ))}
       </div>
-      <div className="primordial-cell" aria-hidden="true">
-        <i className="cell-membrane" />
-        <i className="cell-core" />
-        <i className="cell-organelle cell-organelle-a" />
-        <i className="cell-organelle cell-organelle-b" />
-        <i className="cell-strand cell-strand-a" />
-        <i className="cell-strand cell-strand-b" />
-      </div>
       <div className="world-boot-life" aria-hidden="true">
         {LIFE_POINTS.map(([x, y], index) => (
           <i key={index} style={{ '--x': `${x * 85}vw`, '--y': `${y * 85}vh`, '--delay': `${index * 35}ms`, '--scale': 0.6 + (index % 5) * 0.15 } as CSSProperties} />
@@ -84,13 +85,44 @@ function FirstCellSequence({ seed, onComplete }: Pick<WorldBootSequenceProps, 's
         })}
       </div>
 
-      <div className="world-boot-copy">
-        {current.label && <p className="world-boot-status">{current.label}</p>}
+      <div className="world-boot-frame">
+        <div className="world-boot-brand">
+          <strong>EVO</strong>
+          <span>ARTIFICIAL LIFE LAB</span>
+        </div>
+        <p className="world-boot-tagline">LIFE BEGINS<br />WITH A SINGLE<br />POSSIBILITY.</p>
+
+        <div className="world-boot-heading">
+          <h2>GENERATING <b>WORLD</b></h2>
+          {current.label && <p className="world-boot-status">{current.label}&hellip;</p>}
+        </div>
+
+        <div className="primordial-cell" aria-hidden="true">
+          <i className="cell-membrane" />
+          <i className="cell-core" />
+          <i className="cell-organelle cell-organelle-a" />
+          <i className="cell-organelle cell-organelle-b" />
+          <i className="cell-strand cell-strand-a" />
+          <i className="cell-strand cell-strand-b" />
+        </div>
+
         <div className="world-boot-progress" aria-hidden="true">
           <span><i style={{ width: `${Math.max(4, progress)}%` }} /></span>
-          <b>{String(progress).padStart(2, '0')}%</b>
+          <b>{progress}%</b>
         </div>
+
+        <ol className="world-boot-stagelist" aria-hidden="true">
+          {GENERATION_STAGES.map((label, index) => (
+            <li key={label} className={index === current.stageIndex ? 'is-active' : index < current.stageIndex ? 'is-done' : ''}>{label}</li>
+          ))}
+        </ol>
+
+        <blockquote className="world-boot-quote">
+          &ldquo;Life begins with a single possibility.&rdquo;
+          <cite>&mdash; Unknown</cite>
+        </blockquote>
       </div>
+
       <p className="world-boot-god-hint" aria-hidden="true">GOD DETECTED.</p>
       <div className="world-boot-title" aria-hidden={!alive}>
         <h1>E V O</h1>
