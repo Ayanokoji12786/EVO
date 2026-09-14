@@ -66,7 +66,7 @@ export function CreateWorld({ onStart }: { onStart: (config: WorldConfig) => voi
             </button>
             <button className="launch-action launch-action-secondary" onClick={() => onStart(buildConfig())}>
               <i className="launch-continue-mark" aria-hidden="true">◉</i>
-              <span><strong>CONTINUE</strong><small>WORLD {worldId} · GENERATION 0</small></span><b aria-hidden="true">→</b>
+              <span><strong>QUICK START</strong><small>WORLD {worldId} · GENERATION 0</small></span><b aria-hidden="true">→</b>
             </button>
           </div>
           <div className="launch-pathways" aria-label="Ways to explore EVO">
