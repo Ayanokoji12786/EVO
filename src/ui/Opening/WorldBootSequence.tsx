@@ -97,14 +97,7 @@ function FirstCellSequence({ seed, onComplete }: Pick<WorldBootSequenceProps, 's
           {current.label && <p className="world-boot-status">{current.label}&hellip;</p>}
         </div>
 
-        <div className="primordial-cell" aria-hidden="true">
-          <i className="cell-membrane" />
-          <i className="cell-core" />
-          <i className="cell-organelle cell-organelle-a" />
-          <i className="cell-organelle cell-organelle-b" />
-          <i className="cell-strand cell-strand-a" />
-          <i className="cell-strand cell-strand-b" />
-        </div>
+        <DividingCell stage={stage} />
 
         <div className="world-boot-progress" aria-hidden="true">
           <span><i style={{ width: `${Math.max(4, progress)}%` }} /></span>
@@ -131,6 +124,75 @@ function FirstCellSequence({ seed, onComplete }: Pick<WorldBootSequenceProps, 's
       </div>
       <button className="world-boot-skip" type="button" onClick={finish}>Skip introduction</button>
     </section>
+  );
+}
+
+/** A dividing-cell centerpiece built with layered SVGs: two glowing lobes on a warm
+ * amber core with cyan neural filaments radiating out. Progresses through stages so the
+ * cell physically divides as world generation completes — matches the reference's
+ * centerpiece aesthetic without needing a rendered photograph as an asset. */
+function DividingCell({ stage }: { stage: number }) {
+  const separated = stage >= 3;
+  const bloomed = stage >= 5;
+  return (
+    <div className={`dividing-cell ${separated ? 'is-separated' : ''} ${bloomed ? 'is-bloomed' : ''}`} aria-hidden="true">
+      <div className="dividing-cell-aura" />
+      <svg viewBox="-100 -100 200 200" className="dividing-cell-svg">
+        <defs>
+          <radialGradient id="cellCore" cx="0.4" cy="0.35">
+            <stop offset="0%" stopColor="#fff2d8" />
+            <stop offset="35%" stopColor="#ff9b52" />
+            <stop offset="75%" stopColor="#c04a1f" />
+            <stop offset="100%" stopColor="#3a0a02" />
+          </radialGradient>
+          <radialGradient id="cellHalo" cx="0.5" cy="0.5">
+            <stop offset="0%" stopColor="rgba(140,200,255,0.55)" />
+            <stop offset="50%" stopColor="rgba(60,120,200,0.22)" />
+            <stop offset="100%" stopColor="rgba(0,0,0,0)" />
+          </radialGradient>
+          <filter id="cellGlow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="3" result="glow" />
+            <feMerge><feMergeNode in="glow" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
+        </defs>
+        {/* Outer halo — always present, pulses subtly */}
+        <circle cx="0" cy="0" r="90" fill="url(#cellHalo)" className="dividing-cell-halo-ring" />
+
+        {/* Filaments — thin cyan strands radiating outward like a firing neuron */}
+        <g className="dividing-cell-filaments" stroke="rgba(140,200,255,0.55)" strokeWidth="0.6" fill="none">
+          {Array.from({ length: 18 }, (_, i) => {
+            const angle = (i / 18) * Math.PI * 2;
+            const inner = 46;
+            const outer = 76 + (i % 3) * 8;
+            const midAngle = angle + 0.14;
+            return <path key={i} d={`M ${Math.cos(angle) * inner} ${Math.sin(angle) * inner} Q ${Math.cos(midAngle) * (inner + outer) / 2} ${Math.sin(midAngle) * (inner + outer) / 2} ${Math.cos(angle) * outer} ${Math.sin(angle) * outer}`} />;
+          })}
+        </g>
+
+        {/* Left lobe */}
+        <g className="dividing-cell-lobe dividing-cell-lobe-a" filter="url(#cellGlow)">
+          <circle cx="-2" cy="0" r="42" fill="url(#cellCore)" />
+          <circle cx="-2" cy="0" r="42" fill="none" stroke="rgba(180,220,255,0.5)" strokeWidth="1.4" />
+        </g>
+        {/* Right lobe */}
+        <g className="dividing-cell-lobe dividing-cell-lobe-b" filter="url(#cellGlow)">
+          <circle cx="2" cy="0" r="42" fill="url(#cellCore)" />
+          <circle cx="2" cy="0" r="42" fill="none" stroke="rgba(180,220,255,0.5)" strokeWidth="1.4" />
+        </g>
+
+        {/* Bright centerline where the two lobes meet */}
+        <ellipse cx="0" cy="0" rx="2" ry="30" fill="rgba(255,220,150,0.85)" filter="url(#cellGlow)" className="dividing-cell-centerline" />
+      </svg>
+
+      {/* Ambient particle field around the cell */}
+      <div className="dividing-cell-particles">
+        {Array.from({ length: 20 }, (_, i) => {
+          const angle = (i / 20) * Math.PI * 2;
+          const r = 110 + (i % 4) * 22;
+          return <i key={i} style={{ '--dx': `${Math.cos(angle) * r}px`, '--dy': `${Math.sin(angle) * r}px`, '--delay': `${(i * 137) % 1200}ms` } as React.CSSProperties} />;
+        })}
+      </div>
+    </div>
   );
 }
 

@@ -3,7 +3,6 @@ import { SimulationController } from '../../state/simulationController';
 import type { WorldConfig } from '../../simulation/types';
 import { WorldCanvas } from './WorldCanvas';
 import { TopBar } from './TopBar';
-import { WorldPanel } from './WorldPanel';
 import { BottomTimeline } from './BottomTimeline';
 import { CreatureInspector } from '../Inspector/CreatureInspector';
 import { GodPanel } from '../GodMode/GodPanel';
@@ -16,6 +15,10 @@ import { GenerationsLater } from '../Cinematic/GenerationsLater';
 import { useSimStore, type PendingGodAction } from '../../state/simStore';
 import { WorldBootSequence } from '../Opening/WorldBootSequence';
 import type { WorldBootMode } from '../Opening/worldBoot';
+import { seasonalFactor } from '../../environment/climate';
+import { WorldCard } from './WorldCard';
+import { CompassBiome } from './CompassBiome';
+import { SimulationRail } from './SimulationRail';
 
 type Modal = 'tree' | 'time' | 'experiment' | 'about' | 'cinematic' | null;
 
@@ -44,12 +47,11 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
   const setPending = useSimStore((s) => s.setPendingGodAction);
   const evolutionVision = useSimStore((s) => s.evolutionVision);
   const species = useSimStore((s) => s.species);
+  const seedDisplay = useSimStore((s) => s.seedDisplay);
 
   useEffect(() => {
     const c = new SimulationController(config);
     introFinished.current = false;
-    // The world is already rendered under the introduction, but does not advance until
-    // the cell divides and the camera arrives in the living simulation.
     setPaused(true);
     setWorldConfig(config, config.seed);
     setController(c);
@@ -110,6 +112,13 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
     }, 700);
   };
 
+  // Simulated "year" from the world's tick — ticks per year is arbitrary but derived so
+  // higher speed setting still walks the clock at the same rate. Kept out of the World
+  // card component so the top-right card can render without touching the raw sim state.
+  const worldYear = Math.max(1, Math.floor(controller.world.tick / 60));
+  const seasonPct = seasonalFactor(controller.world.climate); // 0=winter, 1=summer
+  const worldTempC = Math.round(15 + controller.world.climate.baseTemperature * 12 + (seasonPct - 0.5) * 12);
+
   return (
     <div className={godArrival ? 'god-arrival-active' : ''} style={{ position: 'absolute', inset: 0 }} data-godmode={godMode ? 'true' : 'false'}>
       <WorldCanvas controller={controller} onGodInvoke={(point) => !godArrival && setRadialAnchor(point)} onMeteorImpact={(report) => { setImpact(report); window.setTimeout(() => setImpact(null), 4300); }} />
@@ -123,6 +132,7 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
           onGodMode={toggleGodMode}
           onExit={onExit}
         />
+        <WorldCard seed={seedDisplay} climate={config.climate} year={worldYear} tempC={worldTempC} />
         <SimulationRail
           onOpenTree={() => setModal('tree')}
           onOpenTimeMachine={() => setModal('time')}
@@ -136,10 +146,8 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
         {impact && <MeteorImpactReport impact={impact} />}
         {evolutionVision && <EvolutionVision speciesCount={species.length} />}
 
-        <div className="sim-bottom-bar">
-          <WorldPanel />
-          <BottomTimeline controller={controller} onOpen={() => setModal('time')} />
-        </div>
+        <CompassBiome controller={controller} tempC={worldTempC} />
+        <BottomTimeline controller={controller} onOpen={() => setModal('time')} />
         {inspector && <div className="creature-inspector-slot"><CreatureInspector controller={controller} /></div>}
 
         <DeathToast />
@@ -153,20 +161,6 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
       {!introComplete && <WorldBootSequence mode={bootMode} seed={config.seed} generation={controller.world.maxGenerationSeen} events={controller.world.events.all()} onComplete={finishIntroduction} />}
     </div>
   );
-}
-
-function SimulationRail({ onOpenTree, onOpenTimeMachine, onOpenExperiment, onGodMode }: { onOpenTree: () => void; onOpenTimeMachine: () => void; onOpenExperiment: () => void; onGodMode: () => void }) {
-  const evolutionVision = useSimStore((s) => s.evolutionVision);
-  const setEvolutionVision = useSimStore((s) => s.setEvolutionVision);
-
-  return <aside className="sim-rail" aria-label="World tools">
-    <button className={evolutionVision ? 'is-active' : ''} onClick={() => setEvolutionVision(!evolutionVision)} title="Evolution Vision" aria-label="Toggle Evolution Vision"><span>⌬</span><small>EVOLVE</small></button>
-    <button onClick={onOpenTree} title="Tree of Life" aria-label="Open Tree of Life"><span>⌁</span><small>LINEAGE</small></button>
-    <button onClick={onOpenTimeMachine} title="Evolutionary timeline" aria-label="Open evolutionary timeline"><span>◷</span><small>HISTORY</small></button>
-    <button onClick={onOpenExperiment} title="Experiments" aria-label="Open experiment lab"><span>◈</span><small>LAB</small></button>
-    <i />
-    <button className="sim-rail-god" onClick={onGodMode} title="God Mode" aria-label="Toggle God Mode"><span>ϟ</span><small>GOD</small></button>
-  </aside>;
 }
 
 function GodArrival({ generation, seed }: { generation: number; seed: string }) {
