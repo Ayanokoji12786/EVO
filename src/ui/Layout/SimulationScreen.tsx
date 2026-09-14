@@ -127,6 +127,15 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
     divineToastTimer.current = setTimeout(() => setDivineToast(null), 3200);
   };
 
+  // Every full-screen view (Tree of Life, Analytics, Time Machine, Experiments...) should
+  // be the only floating panel on top of it — opening one always closes a dangling God
+  // wheel first, so the two can never render stacked on top of each other.
+  const openModal = (m: Exclude<Modal, null>) => {
+    setModal(m);
+    setRadialAnchor(null);
+    setGodInitialLayer(null);
+  };
+
   const handleSelectTool = (tool: RailTool) => {
     if (tool === 'world') {
       setActiveRailTool('world');
@@ -136,9 +145,9 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
       setGodInitialLayer(null);
       return;
     }
-    if (tool === 'tools') { setActiveRailTool('tools'); setModal('experiment'); return; }
-    if (tool === 'analytics') { setActiveRailTool('analytics'); setModal('analytics'); return; }
-    if (tool === 'evolution') { setActiveRailTool('evolution'); setModal('tree'); return; }
+    if (tool === 'tools') { setActiveRailTool('tools'); openModal('experiment'); return; }
+    if (tool === 'analytics') { setActiveRailTool('analytics'); openModal('analytics'); return; }
+    if (tool === 'evolution') { setActiveRailTool('evolution'); openModal('tree'); return; }
     if (tool === 'life') {
       setActiveRailTool('life');
       if (!inspector) {
@@ -168,11 +177,11 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
       <WorldCanvas controller={controller} onMeteorImpact={(report) => { setImpact(report); window.setTimeout(() => setImpact(null), 4300); }} />
       {introComplete && <div className="simulation-ui is-visible">
         <TopBar
-          onOpenTree={() => setModal('tree')}
-          onOpenTimeMachine={() => setModal('time')}
-          onOpenExperiment={() => setModal('experiment')}
-          onOpenAbout={() => setModal('about')}
-          onOpenCinematic={() => setModal('cinematic')}
+          onOpenTree={() => { setActiveRailTool('evolution'); openModal('tree'); }}
+          onOpenTimeMachine={() => openModal('time')}
+          onOpenExperiment={() => { setActiveRailTool('tools'); openModal('experiment'); }}
+          onOpenAbout={() => openModal('about')}
+          onOpenCinematic={() => openModal('cinematic')}
           onExit={onExit}
         />
         <WorldCard seed={seedDisplay} climate={config.climate} year={worldYear} tempC={worldTempC} />
@@ -194,8 +203,8 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
         {divineToast && <div className="divine-toast">{divineToast}</div>}
 
         <CompassBiome controller={controller} tempC={worldTempC} />
-        <BottomTimeline controller={controller} onOpen={() => setModal('time')} />
-        {inspector && <div className="creature-inspector-slot"><CreatureInspector controller={controller} /></div>}
+        <BottomTimeline controller={controller} onOpen={() => openModal('time')} />
+        {inspector && modal === null && <div className="creature-inspector-slot"><CreatureInspector controller={controller} /></div>}
 
         <DeathToast />
 

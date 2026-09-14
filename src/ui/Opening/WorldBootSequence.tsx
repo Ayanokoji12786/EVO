@@ -67,6 +67,9 @@ function FirstCellSequence({ seed, onComplete }: Pick<WorldBootSequenceProps, 's
 
   return (
     <section className={className} aria-label="Creating a new world" role="status">
+      <div className="world-boot-bokeh" aria-hidden="true">
+        <i className="bokeh-a" /><i className="bokeh-b" /><i className="bokeh-c" /><i className="bokeh-d" /><i className="bokeh-e" />
+      </div>
       <div className="world-boot-particles" aria-hidden="true">
         {LIFE_POINTS.map(([x, y], index) => (
           <i key={index} style={{ '--x': `${x * 34}vw`, '--y': `${y * 34}vw`, '--delay': `${index * 43}ms` } as CSSProperties} />
@@ -145,6 +148,21 @@ function DividingCell({ stage }: { stage: number }) {
             <stop offset="75%" stopColor="#c04a1f" />
             <stop offset="100%" stopColor="#3a0a02" />
           </radialGradient>
+          {/* Membrane body: dark, cool, and lit only at the rim — a flat fill here would
+              read as a vector circle, so the visible "surface" comes almost entirely from
+              the rim-light and displacement-mapped speckle layers below instead. */}
+          <radialGradient id="cellBody" cx="0.38" cy="0.32">
+            <stop offset="0%" stopColor="#2a4258" />
+            <stop offset="45%" stopColor="#152535" />
+            <stop offset="80%" stopColor="#060d16" />
+            <stop offset="100%" stopColor="#02050a" />
+          </radialGradient>
+          <radialGradient id="cellRim" cx="0.5" cy="0.5" r="0.5">
+            <stop offset="72%" stopColor="rgba(150,210,255,0)" />
+            <stop offset="90%" stopColor="rgba(150,210,255,.55)" />
+            <stop offset="97%" stopColor="rgba(210,240,255,.95)" />
+            <stop offset="100%" stopColor="rgba(210,240,255,0)" />
+          </radialGradient>
           <radialGradient id="cellHalo" cx="0.5" cy="0.5">
             <stop offset="0%" stopColor="rgba(140,200,255,0.55)" />
             <stop offset="50%" stopColor="rgba(60,120,200,0.22)" />
@@ -154,6 +172,15 @@ function DividingCell({ stage }: { stage: number }) {
             <feGaussianBlur stdDeviation="3" result="glow" />
             <feMerge><feMergeNode in="glow" /><feMergeNode in="SourceGraphic" /></feMerge>
           </filter>
+          {/* Organic surface speckle: fractal noise displaces a ring of dots so the
+              membrane edge reads as an irregular biological surface instead of a
+              perfect vector circle — the single biggest lever for a photographic feel. */}
+          <filter id="cellSurface" x="-30%" y="-30%" width="160%" height="160%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.09" numOctaves="3" seed="7" result="noise" />
+            <feDisplacementMap in="SourceGraphic" in2="noise" scale="9" />
+          </filter>
+          <clipPath id="cellClipA"><circle cx="-2" cy="0" r="42" /></clipPath>
+          <clipPath id="cellClipB"><circle cx="2" cy="0" r="42" /></clipPath>
         </defs>
         {/* Outer halo — always present, pulses subtly */}
         <circle cx="0" cy="0" r="90" fill="url(#cellHalo)" className="dividing-cell-halo-ring" />
@@ -170,18 +197,31 @@ function DividingCell({ stage }: { stage: number }) {
         </g>
 
         {/* Left lobe */}
-        <g className="dividing-cell-lobe dividing-cell-lobe-a" filter="url(#cellGlow)">
-          <circle cx="-2" cy="0" r="42" fill="url(#cellCore)" />
-          <circle cx="-2" cy="0" r="42" fill="none" stroke="rgba(180,220,255,0.5)" strokeWidth="1.4" />
+        <g className="dividing-cell-lobe dividing-cell-lobe-a">
+          <circle cx="-2" cy="0" r="42" fill="url(#cellBody)" />
+          <g clipPath="url(#cellClipA)" filter="url(#cellSurface)" opacity="0.5">
+            <circle cx="-2" cy="0" r="42" fill="none" stroke="rgba(120,180,230,.4)" strokeWidth="7" />
+            <circle cx="-2" cy="0" r="30" fill="none" stroke="rgba(80,140,190,.28)" strokeWidth="5" />
+          </g>
+          <circle cx="-2" cy="0" r="42" fill="url(#cellRim)" />
+          <circle cx="-2" cy="0" r="42" fill="none" stroke="rgba(180,220,255,0.5)" strokeWidth="1" />
         </g>
         {/* Right lobe */}
-        <g className="dividing-cell-lobe dividing-cell-lobe-b" filter="url(#cellGlow)">
-          <circle cx="2" cy="0" r="42" fill="url(#cellCore)" />
-          <circle cx="2" cy="0" r="42" fill="none" stroke="rgba(180,220,255,0.5)" strokeWidth="1.4" />
+        <g className="dividing-cell-lobe dividing-cell-lobe-b">
+          <circle cx="2" cy="0" r="42" fill="url(#cellBody)" />
+          <g clipPath="url(#cellClipB)" filter="url(#cellSurface)" opacity="0.5">
+            <circle cx="2" cy="0" r="42" fill="none" stroke="rgba(120,180,230,.4)" strokeWidth="7" />
+            <circle cx="2" cy="0" r="30" fill="none" stroke="rgba(80,140,190,.28)" strokeWidth="5" />
+          </g>
+          <circle cx="2" cy="0" r="42" fill="url(#cellRim)" />
+          <circle cx="2" cy="0" r="42" fill="none" stroke="rgba(180,220,255,0.5)" strokeWidth="1" />
         </g>
 
-        {/* Bright centerline where the two lobes meet */}
-        <ellipse cx="0" cy="0" rx="2" ry="30" fill="rgba(255,220,150,0.85)" filter="url(#cellGlow)" className="dividing-cell-centerline" />
+        {/* Core glow shows through both lobes at the seam, plus the molten contact line */}
+        <g filter="url(#cellGlow)">
+          <circle cx="0" cy="0" r="16" fill="url(#cellCore)" opacity="0.9" />
+          <ellipse cx="0" cy="0" rx="2.2" ry="32" fill="rgba(255,225,160,0.9)" className="dividing-cell-centerline" />
+        </g>
       </svg>
 
       {/* Ambient particle field around the cell */}
