@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { TerrainGrid } from '../environment/terrain';
 import { TerrainTexture } from '../rendering/terrainTexture';
+import surfaceUrl from '../assets/terrain-surface.png';
 
 // Relief as a fraction of world size. Dramatic enough to read as real terrain from an
 // angled aerial camera; the simulation's own movement/gameplay logic stays on the flat
@@ -35,7 +36,7 @@ export class TerrainMesh {
   private texture: THREE.CanvasTexture;
   private textureSource = new TerrainTexture();
   private builtForResolution = -1;
-  private segments = 96;
+  private segments = 192;
 
   constructor() {
     this.geometry = new THREE.PlaneGeometry(1, 1, this.segments, this.segments);
@@ -43,13 +44,28 @@ export class TerrainMesh {
     this.texture = new THREE.CanvasTexture(this.textureSource.canvas);
     this.texture.colorSpace = THREE.SRGBColorSpace;
     const material = new THREE.MeshStandardMaterial({ map: this.texture, roughness: 0.95, metalness: 0.02 });
+    const detail = new THREE.TextureLoader().load(surfaceUrl);
+    detail.wrapS = detail.wrapT = THREE.RepeatWrapping;
+    detail.repeat.set(32, 32);
+    detail.anisotropy = 8;
+    material.bumpMap = detail;
+    material.bumpScale = 2.5;
+    material.onBeforeCompile = (shader) => {
+      shader.uniforms.surfaceDetail = { value: detail };
+      shader.fragmentShader = 'uniform sampler2D surfaceDetail;\n' + shader.fragmentShader;
+      shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `
+        #include <map_fragment>
+        vec3 grain = texture2D(surfaceDetail, vMapUv * 32.0).rgb;
+        diffuseColor.rgb *= mix(vec3(0.72), vec3(1.3), grain);
+      `);
+    };
     this.mesh = new THREE.Mesh(this.geometry, material);
     this.mesh.receiveShadow = true;
 
     const waterGeo = new THREE.PlaneGeometry(1, 1, 1, 1);
     waterGeo.rotateX(-Math.PI / 2);
     const waterMat = new THREE.MeshPhysicalMaterial({
-      color: 0x1b5c82,
+      color: 0x176c78,
       roughness: 0.18,
       metalness: 0.05,
       transparent: true,
@@ -57,6 +73,8 @@ export class TerrainMesh {
       transmission: 0.25,
       thickness: 2,
     });
+    waterMat.bumpMap = detail;
+    waterMat.bumpScale = 0.7;
     this.waterMesh = new THREE.Mesh(waterGeo, waterMat);
   }
 

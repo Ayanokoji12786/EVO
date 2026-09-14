@@ -21,13 +21,20 @@ export function createSceneRig(worldSize: number): SceneRig {
 
   const sun = new THREE.DirectionalLight(0xfff2d8, 1.4);
   sun.position.set(worldSize * 0.3, worldSize * 0.5, worldSize * 0.2);
+  sun.castShadow = true;
+  sun.shadow.mapSize.set(2048, 2048);
+  sun.shadow.camera.left = sun.shadow.camera.bottom = -worldSize * 0.7;
+  sun.shadow.camera.right = sun.shadow.camera.top = worldSize * 0.7;
+  sun.shadow.camera.far = worldSize * 3;
+  sun.shadow.normalBias = 0.8;
+  sun.target.position.set(worldSize / 2, 0, worldSize / 2);
   scene.add(sun);
   scene.add(sun.target);
 
   const hemi = new THREE.HemisphereLight(0x9fc3ff, 0x1a2417, 0.55);
   scene.add(hemi);
 
-  const fillLight = new THREE.AmbientLight(0x304050, 0.25);
+  const fillLight = new THREE.AmbientLight(0x9bacc5, 0.4);
   scene.add(fillLight);
 
   const starGeo = new THREE.BufferGeometry();
@@ -64,12 +71,12 @@ export function updateLighting(rig: SceneRig, climate: ClimateState, worldSize: 
   const dayAngle = climate.dayNightProgress * Math.PI * 2 - Math.PI / 2;
 
   const sunHeight = Math.max(0.05, Math.sin(dayAngle));
-  rig.sun.position.set(Math.cos(dayAngle) * worldSize * 0.6, sunHeight * worldSize * 0.7, worldSize * 0.35);
+  rig.sun.position.set(worldSize / 2 + Math.cos(dayAngle) * worldSize * 0.6, sunHeight * worldSize * 0.7, worldSize * 0.35);
   rig.sun.intensity = 0.25 + light * 1.5;
   rig.sun.color.copy(WINTER_SUN).lerp(SUMMER_SUN, season);
 
-  rig.hemi.intensity = 0.15 + light * 0.5;
-  rig.fillLight.intensity = 0.18 + (1 - light) * 0.22;
+  rig.hemi.intensity = 0.5 + light * 0.55;
+  rig.fillLight.intensity = 0.3 + (1 - light) * 0.35;
 
   const sky = NIGHT_SKY.clone().lerp(DAY_SKY, light);
   renderer.setClearColor(sky, 1);

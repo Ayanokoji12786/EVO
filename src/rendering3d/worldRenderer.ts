@@ -5,6 +5,7 @@ import { createSceneRig, updateLighting, type SceneRig } from './scene';
 import { TerrainMesh, elevationAtWorld } from './terrainMesh';
 import { CreatureField } from './creatures';
 import { FoodField3D, StormField3D } from './food';
+import { VegetationField } from './vegetation';
 
 export interface Render3DOptions {
   selectedId: number | null;
@@ -23,18 +24,23 @@ export class WorldRenderer3D {
   private creatures: CreatureField;
   private food: FoodField3D;
   private storms: StormField3D;
+  private vegetation = new VegetationField();
   private selectionRing: THREE.Mesh;
   private visionCone: THREE.Mesh;
   private startTime = performance.now();
 
   constructor(canvas: HTMLCanvasElement, worldSize: number) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-    this.renderer.shadowMap.enabled = false; // thousands of instanced organisms; shadows would be a heavy cost for little payoff at aerial scale
+    this.renderer.shadowMap.enabled = true;
+    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.15;
     this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
 
     this.rig = createSceneRig(worldSize);
     this.terrain = new TerrainMesh();
     this.rig.scene.add(this.terrain.mesh, this.terrain.waterMesh);
+    this.rig.scene.add(this.vegetation.group);
 
     this.creatures = new CreatureField();
     this.rig.scene.add(this.creatures.mesh);
@@ -67,15 +73,30 @@ export class WorldRenderer3D {
    * terraforming edits the terrain grid directly. */
   invalidateTerrain() {
     this.terrain.invalidate();
+    this.vegetation.invalidate();
   }
 
   dispose() {
+    const textures = new Set<THREE.Texture>();
+    this.rig.scene.traverse(object => {
+      if (!(object instanceof THREE.Mesh || object instanceof THREE.Points)) return;
+      object.geometry.dispose();
+      const materials = Array.isArray(object.material) ? object.material : [object.material];
+      for (const material of materials) {
+        for (const value of Object.values(material)) if (value instanceof THREE.Texture) textures.add(value);
+        material.dispose();
+      }
+      if (object instanceof THREE.InstancedMesh) object.dispose();
+    });
+    textures.forEach(texture => texture.dispose());
+    this.rig.sun.shadow.dispose();
     this.renderer.dispose();
   }
 
   draw(camera: Camera, world: WorldState, options: Render3DOptions) {
     const timeSeconds = (performance.now() - this.startTime) / 1000;
     this.terrain.ensure(world.terrain);
+    this.vegetation.ensure(world.terrain);
     this.terrain.animateWater(timeSeconds);
     updateLighting(this.rig, world.climate, world.config.worldSize, this.renderer);
 

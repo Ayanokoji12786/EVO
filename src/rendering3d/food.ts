@@ -3,7 +3,7 @@ import type { WorldState } from '../simulation/worldState';
 import { elevationAtWorld } from './terrainMesh';
 
 const FOOD_COLOR: Record<string, THREE.Color> = {
-  plant: new THREE.Color(0x78e68c),
+  plant: new THREE.Color(0x71834b),
   hardShell: new THREE.Color(0x7cc8ff),
   carcass: new THREE.Color(0xd25a46),
 };
@@ -18,8 +18,7 @@ export class FoodField3D {
 
   constructor() {
     const geometry = new THREE.SphereGeometry(1, 6, 5);
-    const material = new THREE.MeshStandardMaterial({ emissiveIntensity: 1.4, roughness: 0.4 });
-    material.emissive = new THREE.Color(0x88ff9a);
+    const material = new THREE.MeshStandardMaterial({ roughness: 1 });
     this.mesh = new THREE.InstancedMesh(geometry, material, MAX_FOOD_INSTANCES);
     this.mesh.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(MAX_FOOD_INSTANCES * 3), 3);
     this.mesh.count = 0;
@@ -36,7 +35,7 @@ export class FoodField3D {
       const groundY = elevationAtWorld(world.terrain, food.x, food.y);
       const scale = food.kind === 'plant' ? 2.2 : food.kind === 'hardShell' ? 3.4 : 3.8;
       this.dummy.position.set(food.x, groundY + scale * 0.5, food.y);
-      this.dummy.scale.setScalar(scale);
+      this.dummy.scale.set(scale, scale * (food.kind === 'plant' ? 0.65 : 0.4), scale);
       this.dummy.updateMatrix();
       this.mesh.setMatrixAt(i, this.dummy.matrix);
       this.mesh.setColorAt(i, FOOD_COLOR[food.kind] ?? FOOD_COLOR.plant);
