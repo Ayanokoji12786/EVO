@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { SimulationController } from '../../state/simulationController';
-import type { WorldConfig } from '../../simulation/types';
+import type { WorldConfig, Organism } from '../../simulation/types';
 import { WorldCanvas } from './WorldCanvas';
 import { TopBar } from './TopBar';
 import { BottomTimeline } from './BottomTimeline';
@@ -20,8 +20,9 @@ import { WorldCard } from './WorldCard';
 import { CompassBiome } from './CompassBiome';
 import { SimulationRail, type RailTool } from './SimulationRail';
 import type { GodCategory } from '../GodMode/GodPanel';
+import { WorldAnalytics } from '../Analytics/WorldAnalytics';
 
-type Modal = 'tree' | 'time' | 'experiment' | 'about' | 'cinematic' | null;
+type Modal = 'tree' | 'time' | 'experiment' | 'about' | 'cinematic' | 'analytics' | null;
 
 // Fixed wheel position, independent of any click/anchor — matches the reference, where
 // the radial always opens in the same place rather than following the cursor.
@@ -39,6 +40,8 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
   const [godInitialLayer, setGodInitialLayer] = useState<GodCategory | null>(null);
   const [activeRailTool, setActiveRailTool] = useState<RailTool>('world');
   const [impact, setImpact] = useState<{ before: number; after: number; eliminated: number; percent: number; extinctSpecies: number; survivors: number } | null>(null);
+  const [divineToast, setDivineToast] = useState<string | null>(null);
+  const divineToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [introComplete, setIntroComplete] = useState(false);
   const restoreSpeed = useRef<ReturnType<typeof setTimeout> | null>(null);
   const revealRaf = useRef<number | null>(null);
@@ -118,6 +121,12 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
     }
   };
 
+  const showDivineToast = (message: string) => {
+    setDivineToast(message);
+    if (divineToastTimer.current) clearTimeout(divineToastTimer.current);
+    divineToastTimer.current = setTimeout(() => setDivineToast(null), 3200);
+  };
+
   const handleSelectTool = (tool: RailTool) => {
     if (tool === 'world') {
       setActiveRailTool('world');
@@ -128,7 +137,22 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
       return;
     }
     if (tool === 'tools') { setActiveRailTool('tools'); setModal('experiment'); return; }
-    if (tool === 'analytics') { setActiveRailTool('analytics'); setModal('time'); return; }
+    if (tool === 'analytics') { setActiveRailTool('analytics'); setModal('analytics'); return; }
+    if (tool === 'evolution') { setActiveRailTool('evolution'); setModal('tree'); return; }
+    if (tool === 'life') {
+      setActiveRailTool('life');
+      if (!inspector) {
+        let closest: Organism | null = null;
+        let bestDist = Infinity;
+        for (const org of controller.world.organisms.values()) {
+          if (!org.alive) continue;
+          const d = Math.hypot(org.x - controller.camera.x, org.y - controller.camera.y);
+          if (d < bestDist) { bestDist = d; closest = org; }
+        }
+        if (closest) controller.select(closest.id);
+      }
+      return;
+    }
     enterGodWheel(tool, tool === 'weather' ? 'weather' : null);
   };
 
@@ -161,11 +185,13 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
             anchor={radialAnchor}
             initialLayer={godInitialLayer}
             onClose={() => { setRadialAnchor(null); setGodInitialLayer(null); }}
+            onAction={showDivineToast}
           />
         )}
         {rainBrush && <RainBrushPanel action={rainBrush} onChange={setPending} />}
         {impact && <MeteorImpactReport impact={impact} />}
         {evolutionVision && <EvolutionVision speciesCount={species.length} />}
+        {divineToast && <div className="divine-toast">{divineToast}</div>}
 
         <CompassBiome controller={controller} tempC={worldTempC} />
         <BottomTimeline controller={controller} onOpen={() => setModal('time')} />
@@ -173,9 +199,10 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
 
         <DeathToast />
 
-        {modal === 'tree' && <TreeOfLife controller={controller} onClose={() => setModal(null)} />}
+        {modal === 'tree' && <TreeOfLife controller={controller} onClose={() => { setModal(null); setActiveRailTool('world'); }} />}
+        {modal === 'analytics' && <WorldAnalytics controller={controller} onClose={() => { setModal(null); setActiveRailTool('world'); }} />}
         {modal === 'time' && <TimeMachine controller={controller} onClose={() => setModal(null)} />}
-        {modal === 'experiment' && <ExperimentPanel controller={controller} onClose={() => setModal(null)} />}
+        {modal === 'experiment' && <ExperimentPanel controller={controller} onClose={() => { setModal(null); setActiveRailTool('world'); }} />}
         {modal === 'about' && <About onClose={() => setModal(null)} />}
         {modal === 'cinematic' && <GenerationsLater controller={controller} onClose={() => setModal(null)} />}
       </div>}
