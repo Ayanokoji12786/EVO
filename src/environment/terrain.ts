@@ -30,6 +30,9 @@ export interface TerrainGrid {
   worldSize: number;
   cellSize: number;
   type: Uint8Array;
+  /** 0..1 raw elevation noise, kept alongside the classified type so the 3D terrain mesh
+   * has organic relief instead of a flat step per terrain type. */
+  elevation: Float32Array;
 }
 
 // Simple hash-based value noise (no external deps), layered at a few octaves.
@@ -73,6 +76,7 @@ function fbm(x: number, y: number, seed: number, octaves: number): number {
 export function generateTerrain(config: WorldConfig, rng: RNG): TerrainGrid {
   const resolution = config.gridResolution;
   const type = new Uint8Array(resolution * resolution);
+  const elevation = new Float32Array(resolution * resolution);
   const seed = rng.int(1_000_000);
   const climateShift = config.climate === 'hot' ? 0.35 : config.climate === 'cold' ? -0.35 : 0;
 
@@ -80,25 +84,27 @@ export function generateTerrain(config: WorldConfig, rng: RNG): TerrainGrid {
     for (let gx = 0; gx < resolution; gx++) {
       const nx = gx / resolution;
       const ny = gy / resolution;
-      const elevation = fbm(nx * 4, ny * 4, seed, 4);
+      const cellElevation = fbm(nx * 4, ny * 4, seed, 4);
       const moisture = fbm(nx * 4 + 50, ny * 4 + 50, seed + 999, 4);
       const latitude = Math.abs(ny - 0.5) * 2; // 0 at equator (center), 1 at poles (edges)
       const coldness = latitude * 0.8 - climateShift;
 
       let t: TerrainType;
-      if (elevation > 0.72) t = 'mountain';
-      else if (elevation < 0.32 && moisture > 0.55) t = 'water';
+      if (cellElevation > 0.72) t = 'mountain';
+      else if (cellElevation < 0.32 && moisture > 0.55) t = 'water';
       else if (coldness > 0.55) t = 'tundra';
       else if (moisture < 0.28 && coldness < 0.3) t = 'desert';
       else if (moisture > 0.68) t = 'forest';
-      else if (moisture > 0.5 && elevation > 0.4 && elevation < 0.6) t = 'fertile';
+      else if (moisture > 0.5 && cellElevation > 0.4 && cellElevation < 0.6) t = 'fertile';
       else t = 'grass';
 
-      type[gy * resolution + gx] = TERRAIN_ID[t];
+      const idx = gy * resolution + gx;
+      type[idx] = TERRAIN_ID[t];
+      elevation[idx] = cellElevation;
     }
   }
 
-  return { resolution, worldSize: config.worldSize, cellSize: config.worldSize / resolution, type };
+  return { resolution, worldSize: config.worldSize, cellSize: config.worldSize / resolution, type, elevation };
 }
 
 export function terrainAt(grid: TerrainGrid, x: number, y: number): TerrainType {
@@ -107,8 +113,23 @@ export function terrainAt(grid: TerrainGrid, x: number, y: number): TerrainType 
   return TERRAIN_TYPES[grid.type[gy * grid.resolution + gx]];
 }
 
+// Target elevation each terrain type "wants" to settle toward when hand-painted, so the
+// 3D relief stays coherent with God Mode terraforming instead of freezing at whatever
+// noise value happened to generate there originally.
+const PAINT_ELEVATION: Record<TerrainType, number> = {
+  water: 0.18,
+  desert: 0.4,
+  grass: 0.48,
+  fertile: 0.5,
+  tundra: 0.55,
+  toxic: 0.5,
+  forest: 0.58,
+  mountain: 0.88,
+};
+
 export function paintTerrain(grid: TerrainGrid, x: number, y: number, radius: number, terrainType: TerrainType) {
   const id = TERRAIN_ID[terrainType];
+  const targetElevation = PAINT_ELEVATION[terrainType];
   const cellRadius = Math.ceil(radius / grid.cellSize);
   const cgx = Math.floor(x / grid.cellSize);
   const cgy = Math.floor(y / grid.cellSize);
@@ -119,8 +140,13 @@ export function paintTerrain(grid: TerrainGrid, x: number, y: number, radius: nu
       if (gx < 0 || gy < 0 || gx >= grid.resolution || gy >= grid.resolution) continue;
       const wx = (gx + 0.5) * grid.cellSize;
       const wy = (gy + 0.5) * grid.cellSize;
-      if (Math.hypot(wx - x, wy - y) <= radius) {
-        grid.type[gy * grid.resolution + gx] = id;
+      const dist = Math.hypot(wx - x, wy - y);
+      if (dist <= radius) {
+        const idx = gy * grid.resolution + gx;
+        grid.type[idx] = id;
+        // Blend toward the target rather than snapping, so the brush edge isn't a cliff.
+        const falloff = 1 - dist / radius;
+        grid.elevation[idx] = grid.elevation[idx] + (targetElevation - grid.elevation[idx]) * Math.max(0.35, falloff);
       }
     }
   }

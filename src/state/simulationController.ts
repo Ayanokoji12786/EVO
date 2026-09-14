@@ -1,9 +1,8 @@
 import { createWorld, stepWorld } from '../simulation/engine';
 import type { WorldConfig } from '../simulation/types';
 import type { WorldState } from '../simulation/worldState';
-import { createCamera, panCamera, worldToScreen, zoomCamera, type Camera } from '../rendering/camera';
-import { drawFrame } from '../rendering/renderer';
-import { TerrainTexture } from '../rendering/terrainTexture';
+import { createCamera, panCamera, syncCamera, worldToScreen, zoomCamera, type Camera } from '../rendering/camera';
+import { WorldRenderer3D } from '../rendering3d/worldRenderer';
 import { ancestryChain, allDescendants } from '../simulation/genealogy';
 import { useSimStore, type InspectorData } from './simStore';
 import type { Organism } from '../simulation/types';
@@ -15,9 +14,8 @@ const STATS_PUSH_INTERVAL_MS = 250;
 export class SimulationController {
   world: WorldState;
   camera: Camera;
-  terrainTexture = new TerrainTexture();
   private canvas: HTMLCanvasElement | null = null;
-  private ctx: CanvasRenderingContext2D | null = null;
+  private renderer3d: WorldRenderer3D | null = null;
   private rafHandle: number | null = null;
   private lastStatsPush = 0;
   private lastEventCount = 0;
@@ -30,24 +28,23 @@ export class SimulationController {
 
   attachCanvas(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
-    this.ctx = canvas.getContext('2d');
+    this.renderer3d = new WorldRenderer3D(canvas, this.world.config.worldSize);
     this.resize(canvas.clientWidth, canvas.clientHeight);
     if (this.rafHandle === null) this.loop(performance.now());
   }
 
   resize(w: number, h: number) {
-    if (!this.canvas) return;
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
-    this.canvas.width = w * dpr;
-    this.canvas.height = h * dpr;
-    this.ctx?.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (!this.canvas || !this.renderer3d) return;
+    this.renderer3d.setSize(w, h);
     this.camera.viewportW = w;
     this.camera.viewportH = h;
+    syncCamera(this.camera);
   }
 
   destroy() {
     this.destroyed = true;
     if (this.rafHandle !== null) cancelAnimationFrame(this.rafHandle);
+    this.renderer3d?.dispose();
   }
 
   private loop = (time: number) => {
@@ -137,13 +134,13 @@ export class SimulationController {
   }
 
   private render() {
-    if (!this.ctx) return;
+    if (!this.renderer3d) return;
     const store = useSimStore.getState();
     const ancestryRoot = store.overlays.ancestry;
-    drawFrame(this.ctx, this.camera, this.world, this.terrainTexture, {
+    this.renderer3d.draw(this.camera, this.world, {
       selectedId: store.selectedId,
       ancestryDescendantIds: ancestryRoot !== null ? allDescendants(this.world, ancestryRoot) : null,
-      xrayGene: store.xrayGene,
+      overlays: store.overlays,
       evolutionVision: store.evolutionVision,
     });
   }
@@ -236,7 +233,7 @@ export class SimulationController {
         break;
       case 'terraform':
         god.terraformBrush(this.world, worldX, worldY, action.radius, action.terrainType);
-        this.terrainTexture.invalidate();
+        this.renderer3d?.invalidateTerrain();
         break;
       case 'placeCreature': {
         const org = god.placeCreature(this.world, { traits: action.traits }, worldX, worldY);
