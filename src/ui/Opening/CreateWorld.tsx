@@ -1,8 +1,16 @@
 import { useState } from 'react';
 import type { WorldConfig } from '../../simulation/types';
+import orbitalHero from '../../assets/evo-orbital-hero.png';
 
 function randomSeed(): string {
   return String(Math.floor(100000 + Math.random() * 900000));
+}
+
+function shortWorldId(seed: string): string {
+  const numericSeed = Number.parseInt(seed, 10);
+  return Number.isFinite(numericSeed)
+    ? numericSeed.toString(36).toUpperCase().padStart(4, '0').slice(-4)
+    : seed.toUpperCase().slice(0, 4).padEnd(4, '0');
 }
 
 export function CreateWorld({ onStart }: { onStart: (config: WorldConfig) => void }) {
@@ -30,7 +38,57 @@ export function CreateWorld({ onStart }: { onStart: (config: WorldConfig) => voi
     };
   }
 
-  if (!showSettings) return <div className="opening-hero"><div className="opening-life" aria-hidden="true"><i/><i/><i/><i/><i/><i/><i/><i/></div><div className="opening-copy"><h1>EVO</h1><h2>Life doesn't follow a script.</h2><p>An artificial-life laboratory for exploring evolution through natural selection.</p><button className="opening-cta" onClick={()=>setShowSettings(true)}>CREATE UNIVERSE</button><button className="opening-replay" onClick={()=>onStart(buildConfig())}>Replay World {seed} — a new evolutionary record</button></div></div>;
+  if (!showSettings) {
+    const worldId = shortWorldId(seed);
+    return (
+      <main className="launch-screen" aria-labelledby="launch-title">
+        <div className="launch-orbital-backdrop" style={{ backgroundImage: `url(${orbitalHero})` }} aria-hidden="true" />
+        <div className="launch-atmosphere" aria-hidden="true" />
+
+        <header className="launch-header">
+          <span className="launch-mark">E V O</span>
+          <nav className="launch-top-nav" aria-label="EVO areas">
+            <span>SIMULATE</span><i />
+            <span>EXPLORE</span><i />
+            <span>EXPERIMENT</span><i />
+            <span>DISCOVER</span>
+          </nav>
+          <span className="launch-manifesto">A SMALL WORLD. INFINITE STORIES.</span>
+        </header>
+
+        <section className="launch-content">
+          <h1 id="launch-title" aria-label="EVO">E V O</h1>
+          <h2>LIFE DOESN&apos;T FOLLOW A SCRIPT.</h2>
+          <p className="launch-description">An artificial-life laboratory<br />for exploring evolution through<br />natural selection.</p>
+          <div className="launch-actions">
+            <button className="launch-action launch-action-primary" onClick={() => setShowSettings(true)}>
+              <span>CREATE UNIVERSE</span><b aria-hidden="true">→</b>
+            </button>
+            <button className="launch-action launch-action-secondary" onClick={() => onStart(buildConfig())}>
+              <i className="launch-continue-mark" aria-hidden="true">◉</i>
+              <span><strong>CONTINUE</strong><small>WORLD {worldId} · GENERATION 0</small></span><b aria-hidden="true">→</b>
+            </button>
+          </div>
+          <div className="launch-pathways" aria-label="Ways to explore EVO">
+            <article><i className="pathway-symbol">◌</i><strong>SIMULATE</strong><span>Watch life evolve</span></article>
+            <article><i className="pathway-symbol">⌬</i><strong>EXPERIMENT</strong><span>Test ideas</span></article>
+            <article><i className="pathway-symbol">⌁</i><strong>ANALYZE</strong><span>Find patterns</span></article>
+            <article><i className="pathway-symbol">✦</i><strong>DISCOVER</strong><span>Create new worlds</span></article>
+          </div>
+        </section>
+
+        <blockquote className="launch-quote">“In all things of nature<br />there is something of the marvelous.”<cite>— ARISTOTLE</cite></blockquote>
+        <div className="launch-scroll-cue" aria-hidden="true"><i /><span>SCROLL TO BEGIN</span><b>⌄</b></div>
+        <aside className="launch-featured" aria-label="Featured world Terra Prime">
+          <div className="launch-featured-image" style={{ backgroundImage: `url(${orbitalHero})` }} />
+          <div className="launch-featured-copy"><small>FEATURED WORLD</small><strong>Terra Prime</strong><span>A balanced ecosystem<br />Generation 12,847</span></div>
+          <b className="launch-featured-arrow" aria-hidden="true">→</b>
+          <em>“Still evolving...”</em>
+        </aside>
+        <div className="launch-worlds-await" aria-hidden="true"><span>MANY WORLDS AWAIT</span><i /><i /><i /></div>
+      </main>
+    );
+  }
 
   return (
     <div

@@ -42,34 +42,19 @@ export function TopBar({
   }, [menuOpen]);
 
   return (
-    <div className="topbar" style={{ position: 'absolute', top: 16, left: 16, right: 16, zIndex: 20, display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-      <div
-        className="glass scroll-thin topbar-command-deck"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 22,
-          padding: '10px 18px',
-          flex: 1,
-          minWidth: 0,
-          overflowX: 'auto',
-          overflowY: 'hidden',
-        }}
-      >
-        <div style={{ flexShrink: 0 }}>
-          <div style={{ fontWeight: 800, letterSpacing: 4, color: 'var(--accent)', fontSize: 17 }}>EVO</div>
-          <div style={{ fontFamily: 'var(--mono)', fontSize: 9, color: 'var(--text-dim)', letterSpacing: 1 }}>SEED {seedDisplay}</div>
-        </div>
+    <header className="sim-topbar">
+      <div className="sim-brand-block">
+        <strong>EVO</strong>
+        <span>SEED {seedDisplay}</span>
+      </div>
 
-        <Divider />
-
+      <div className="sim-vitals" aria-label="Current world vitals">
         <Readout label="Generation" value={stats?.generation ?? 0} />
         <Readout label="Population" value={(stats?.population ?? 0).toLocaleString()} />
-        <Readout label="Species" value={stats?.speciesCount ?? 0} />
+        <Readout label="Biodiversity" value={stats?.speciesCount ?? 0} />
+      </div>
 
-        <Divider />
-
-        <div className="time-controls" style={{ display: 'flex', gap: 4, padding: 4, flexShrink: 0 }}>
+      <div className="time-controls sim-time-controls" aria-label="Simulation speed">
           <button className={`btn pill ${paused ? 'active' : ''}`} onClick={() => setPaused(!paused)} title="Pause / Play">
             {paused ? '▶' : '⏸'}
           </button>
@@ -85,15 +70,11 @@ export function TopBar({
               {s === 'max' ? '⚡' : `${s}×`}
             </button>
           ))}
-        </div>
-
-        <div style={{ flex: '1 0 12px' }} />
       </div>
 
-      {/* The "more views" menu and its dropdown live outside the scrollable glass bar —
-          that bar needs overflow-y: hidden to clip horizontally on narrow viewports
-          without spilling vertically, which would otherwise clip this dropdown too. */}
-      <div ref={menuRef} className="glass" style={{ position: 'relative', flexShrink: 0, padding: 4 }}>
+      <div className="sim-topbar-spacer" />
+
+      <div ref={menuRef} className="sim-overflow-menu">
         <button className={`btn pill ${menuOpen ? 'active' : ''}`} onClick={() => setMenuOpen((v) => !v)} title="More views">
           ⋯
         </button>
@@ -163,22 +144,17 @@ export function TopBar({
             <div style={{ height: 1, background: 'var(--border)', margin: '4px 0' }} />
             <MenuItem icon="✕" label="Exit World" onClick={onExit} danger />
           </div>
-        )}
+          )}
       </div>
 
       <button
-        className={`btn divine godmode-toggle ${godMode ? 'active' : ''}`}
+        className={`btn divine sim-god-control ${godMode ? 'active' : ''}`}
         onClick={onGodMode}
-        style={{ padding: '0 22px', fontSize: 13, fontWeight: 700, letterSpacing: 1, flexShrink: 0, whiteSpace: 'nowrap' }}
       >
-        ⚡ {godMode ? 'GOD MODE' : 'ENTER GOD MODE'}
+        <span>⚡</span>{godMode ? 'GOD MODE' : 'GOD MODE'}
       </button>
-    </div>
+    </header>
   );
-}
-
-function Divider() {
-  return <div className="topbar-divider" style={{ width: 1, flexShrink: 0, alignSelf: 'stretch' }} />;
 }
 
 function Readout({ label, value }: { label: string; value: string | number }) {

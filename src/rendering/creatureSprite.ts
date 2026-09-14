@@ -19,15 +19,46 @@ export function drawCreatureSprite(ctx: CanvasRenderingContext2D, sx: number, sy
 
   ctx.save(); ctx.translate(sx, sy); ctx.rotate(heading); ctx.lineJoin = 'round';
   if (moving) ctx.translate(Math.sin(phase) * size * .04, 0);
+  // The tail and legs sit behind the body, which gives even small organisms a readable
+  // direction of travel and a proper animal-like stance rather than a generic dot.
+  ctx.strokeStyle = glow('maxSpeed') ?? hsl(hue - 12, 48, 64, .92);
+  ctx.lineWidth = Math.max(1, size * (.065 + t.maxSpeed * .016));
+  ctx.beginPath();
+  ctx.moveTo(-bodyL * .42, 0);
+  ctx.quadraticCurveTo(-bodyL * (.7 + t.maxSpeed * .15), bodyW * .26 * Math.sin(phase), -bodyL * (.92 + t.maxSpeed * .18), bodyW * .08 * Math.cos(phase * .7));
+  ctx.stroke();
   // Flight appendages / aquatic-style fins: wing-development controls span.
   if (wings > .08) {
     ctx.fillStyle = hsl(hue + 35, 72, 63, .7); ctx.strokeStyle = glow('wingDevelopment') ?? hsl(hue + 35, 60, 76, .8); ctx.lineWidth = highlight('wingDevelopment') ? 2.5 : 1;
     for (const side of [-1, 1]) { ctx.beginPath(); ctx.moveTo(-bodyL*.05, side*bodyW*.22); ctx.quadraticCurveTo(-bodyL*.15, side*bodyW*(1.6 + wings), bodyL*.4, side*bodyW*(1.15 + wings)); ctx.lineTo(bodyL*.15, side*bodyW*.18); ctx.closePath(); ctx.fill(); ctx.stroke(); }
   }
   // Streamlined body responds to speed; body scale responds to size.
-  ctx.fillStyle = hsl(hue, 52 - t.camouflage * 25, 42 + coldCover * 12);
+  const bodyFill = ctx.createLinearGradient(-bodyL * .5, -bodyW * .42, bodyL * .62, bodyW * .52);
+  bodyFill.addColorStop(0, hsl(hue - 12, 48 - t.camouflage * 20, 27 + coldCover * 10));
+  bodyFill.addColorStop(.47, hsl(hue, 57 - t.camouflage * 25, 46 + coldCover * 10));
+  bodyFill.addColorStop(1, hsl(hue + 13, 48, 30 + coldCover * 8));
+  ctx.fillStyle = bodyFill;
   ctx.strokeStyle = glow('size') ?? hsl(hue, 60, 72, .92); ctx.lineWidth = highlight('size') ? 2.5 : 1;
   ctx.beginPath(); ctx.ellipse(0, 0, bodyL*.54, bodyW*.44, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke();
+  // Locomotion is visible in a four-legged stance. Fast organisms take longer strides;
+  // winged species retain a lighter two-legged silhouette.
+  if (wings < .72) {
+    const legXs = wings > .3 ? [-.16, .22] : [-.28, .18];
+    ctx.strokeStyle = glow('maxSpeed') ?? hsl(hue - 24, 38, 68, .86);
+    ctx.lineWidth = Math.max(.85, size * .07);
+    for (const legX of legXs) {
+      for (const side of [-1, 1]) {
+        const swing = moving ? Math.sin(phase * 1.8 + legX * 7 + side) * bodyL * (.12 + t.maxSpeed * .05) : 0;
+        const hipX = legX * bodyL;
+        const hipY = side * bodyW * .28;
+        const kneeX = hipX - bodyL * .08 + swing;
+        const kneeY = side * bodyW * (.62 + t.size * .06);
+        const footX = kneeX + bodyL * (.12 + t.maxSpeed * .05) - swing;
+        const footY = side * bodyW * (.84 + t.size * .06);
+        ctx.beginPath(); ctx.moveTo(hipX, hipY); ctx.lineTo(kneeX, kneeY); ctx.lineTo(footX, footY); ctx.stroke();
+      }
+    }
+  }
   // Thermal covering: spines/fur, denser with temperature tolerance.
   if (coldCover > .12) { ctx.strokeStyle = glow('tempToleranceRange') ?? hsl(hue + 20, 26, 82, .75); ctx.lineWidth = 1; for (let i=0;i<7;i++) { const a = (i/6-.5)*2.2; const x=Math.cos(a)*bodyL*.36; const y=Math.sin(a)*bodyW*.38; ctx.beginPath(); ctx.moveTo(x,y); ctx.lineTo(x*1.2,y*(1.25+coldCover*.35)); ctx.stroke(); } }
   // Armor: segmented plates from energy-storage capacity.
@@ -39,9 +70,14 @@ export function drawCreatureSprite(ctx: CanvasRenderingContext2D, sx: number, sy
   ctx.fillStyle = hsl(hue + 15, 48, 55); ctx.beginPath(); ctx.ellipse(headX,0,bodyL*.2,bodyW*.3,0,0,Math.PI*2);ctx.fill();
   for(let i=0;i<eyeCount;i++){const y=(i-(eyeCount-1)/2)*bodyW*.22;ctx.fillStyle=glow('visionRadius') ?? '#e7fbff';ctx.beginPath();ctx.arc(headX+bodyL*.1,y,size*eyeScale,0,Math.PI*2);ctx.fill();ctx.fillStyle='#10131a';ctx.beginPath();ctx.arc(headX+bodyL*.11,y,size*eyeScale*.42,0,Math.PI*2);ctx.fill();}
   // Predation becomes visible jaw geometry.
-  if(predator>.18){ctx.fillStyle=glow('diet') ?? hsl(8,78,65);ctx.beginPath();ctx.moveTo(headX+bodyL*.23,-bodyW*.13);ctx.lineTo(headX+bodyL*(.22+.2*predator),0);ctx.lineTo(headX+bodyL*.23,bodyW*.13);ctx.closePath();ctx.fill();}
-  // Tail length gives fast bodies a visible streamlining cue.
-  ctx.strokeStyle=glow('maxSpeed') ?? hsl(hue,50,66,.9);ctx.lineWidth=Math.max(1,size*.08);ctx.beginPath();ctx.moveTo(-bodyL*.45,0);ctx.quadraticCurveTo(-bodyL*(.7+t.maxSpeed*.15),bodyW*.2*Math.sin(phase),-bodyL*(.82+t.maxSpeed*.22),0);ctx.stroke();
+  if(predator>.18){
+    ctx.fillStyle=glow('diet') ?? hsl(8,78,65);
+    ctx.beginPath();ctx.moveTo(headX+bodyL*.23,-bodyW*.13);ctx.lineTo(headX+bodyL*(.22+.2*predator),0);ctx.lineTo(headX+bodyL*.23,bodyW*.13);ctx.closePath();ctx.fill();
+    if (predator > .46) {
+      ctx.strokeStyle = glow('aggression') ?? hsl(16, 72, 72, .82); ctx.lineWidth = Math.max(.8, size * .045);
+      for (let spine = 0; spine < 3; spine++) { const x = -bodyL * .1 + spine * bodyL * .19; ctx.beginPath(); ctx.moveTo(x, -bodyW * .36); ctx.lineTo(x - bodyL * .05, -bodyW * (.56 + predator * .2)); ctx.stroke(); }
+    }
+  }
   ctx.restore();
 }
 

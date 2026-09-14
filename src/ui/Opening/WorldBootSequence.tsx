@@ -17,8 +17,9 @@ const BIRTH_STAGES = [
   { at: 2100, label: 'ASSEMBLING FIRST GENOMES' },
   { at: 2900, label: 'ESTABLISHING LAWS OF NATURE' },
   { at: 3700, label: 'INTRODUCING VARIATION' },
-  { at: 4700, label: 'LIFE FINDS A WAY.' },
-  { at: 5750, label: 'WORLD IS ALIVE' },
+  { at: 4550, label: 'INITIALIZING ECOSYSTEM' },
+  { at: 5500, label: 'LIFE FINDS A WAY.' },
+  { at: 6600, label: 'WORLD IS ALIVE' },
 ] as const;
 
 const LIFE_POINTS = [
@@ -47,12 +48,13 @@ function FirstCellSequence({ seed, onComplete }: Pick<WorldBootSequenceProps, 's
 
   useEffect(() => {
     const timers = BIRTH_STAGES.slice(1).map(({ at }, index) => window.setTimeout(() => setStage(index + 1), at * timing));
-    timers.push(window.setTimeout(() => finish(), 7450 * timing));
+    timers.push(window.setTimeout(() => finish(), 8250 * timing));
     return () => timers.forEach(window.clearTimeout);
   }, [finish, timing]);
   const current = BIRTH_STAGES[stage] ?? BIRTH_STAGES.at(-1)!;
   const alive = stage >= BIRTH_STAGES.length - 1;
   const className = `world-boot first-cell-loader stage-${stage}${alive ? ' is-alive' : ''}${hasGodHint(seed) ? ' has-god-hint' : ''}`;
+  const progress = Math.round((stage / (BIRTH_STAGES.length - 1)) * 100);
 
   return (
     <section className={className} aria-label="Creating a new world" role="status">
@@ -74,9 +76,20 @@ function FirstCellSequence({ seed, onComplete }: Pick<WorldBootSequenceProps, 's
           <i key={index} style={{ '--x': `${x * 85}vw`, '--y': `${y * 85}vh`, '--delay': `${index * 35}ms`, '--scale': 0.6 + (index % 5) * 0.15 } as CSSProperties} />
         ))}
       </div>
+      <div className="world-boot-division" aria-hidden="true">
+        {Array.from({ length: 16 }, (_, index) => {
+          const angle = (index / 16) * Math.PI * 2;
+          const distance = 12 + (index % 4) * 7;
+          return <i key={index} style={{ '--x': `${Math.cos(angle) * distance}vw`, '--y': `${Math.sin(angle) * distance}vh`, '--delay': `${index * 42}ms` } as CSSProperties} />;
+        })}
+      </div>
 
       <div className="world-boot-copy">
         {current.label && <p className="world-boot-status">{current.label}</p>}
+        <div className="world-boot-progress" aria-hidden="true">
+          <span><i style={{ width: `${Math.max(4, progress)}%` }} /></span>
+          <b>{String(progress).padStart(2, '0')}%</b>
+        </div>
       </div>
       <p className="world-boot-god-hint" aria-hidden="true">GOD DETECTED.</p>
       <div className="world-boot-title" aria-hidden={!alive}>

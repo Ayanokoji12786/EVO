@@ -163,7 +163,7 @@ export class SimulationController {
     for (const org of this.world.organisms.values()) {
       if (!org.alive) continue;
       const [ox, oy] = worldToScreen(this.camera, org.x, org.y);
-      const r = Math.max(6, org.genome.traits.size * 6.5 * this.camera.zoom) + 4;
+      const r = Math.max(8, org.genome.traits.size * 16 * this.camera.zoom) + 5;
       const d = Math.hypot(ox - sx, oy - sy);
       if (d <= r && d < bestDist) {
         bestDist = d;
@@ -181,7 +181,12 @@ export class SimulationController {
       return;
     }
     const org = this.world.organisms.get(orgId);
-    if (org) { useSimStore.getState().setInspector(this.buildInspectorData(org)); this.follow(orgId); }
+    if (org) {
+      // Selection focuses the observatory on an organism, but following is an explicit
+      // cinematic mode chosen from the inspector rather than an unexpected camera lock.
+      this.follow(null);
+      useSimStore.getState().setInspector(this.buildInspectorData(org));
+    }
   }
 
   follow(orgId: number | null) {

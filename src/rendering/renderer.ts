@@ -44,14 +44,17 @@ export function drawFrame(
   terrainTexture.ensure(world.terrain);
   const [tx0, ty0] = worldToScreen(camera, 0, 0);
   const worldPxSize = world.config.worldSize * camera.zoom;
-  ctx.imageSmoothingEnabled = false;
+  ctx.imageSmoothingEnabled = true;
   ctx.drawImage(terrainTexture.canvas, tx0, ty0, worldPxSize, worldPxSize);
 
   // Food
   for (const food of world.food.items.values()) {
+    // At an overview scale, individual plants resolve as a quiet vegetation field. This
+    // deliberately avoids a confetti layer overwhelming the organisms and terrain.
+    if (food.kind === 'plant' && camera.zoom < 0.75 && food.id % 3 !== 0) continue;
     const [sx, sy] = worldToScreen(camera, food.x, food.y);
     if (sx < -10 || sy < -10 || sx > viewportW + 10 || sy > viewportH + 10) continue;
-    const r = Math.max(1.2, (food.kind === 'plant' ? 2.2 : 3.2) * Math.max(0.6, camera.zoom));
+    const r = Math.max(.7, (food.kind === 'plant' ? 1.5 : 2.8) * Math.max(0.55, camera.zoom));
     const glow = ctx.createRadialGradient(sx, sy, 0, sx, sy, r * 2.5);
     const color = FOOD_COLORS[food.kind] ?? FOOD_COLORS.plant;
     glow.addColorStop(0, `rgba(${color},0.9)`);
@@ -67,14 +70,20 @@ export function drawFrame(
   // distinct populations on the map; overlay modes add an informational halo behind the
   // sprite rather than re-tinting it, so "what species is this" stays legible either way.
   const overlays = world.overlays;
+  const population = world.organisms.size;
+  const overviewSample = camera.zoom < 0.7 && population > 240 ? Math.ceil(population / 240) : 1;
   for (const org of world.organisms.values()) {
     if (!org.alive) continue;
+    // Keep every selected organism visible, but sample a crowded map at overview scale.
+    // The model still has every organism; this is a visual LOD so distinctive silhouettes
+    // remain readable instead of becoming a uniform swarm.
+    if (overviewSample > 1 && org.id !== options.selectedId && org.id % overviewSample !== 0) continue;
     const [sx, sy] = worldToScreen(camera, org.x, org.y);
     if (sx < -30 || sy < -30 || sx > viewportW + 30 || sy > viewportH + 30) continue;
 
     const speciesHue = options.evolutionVision ? genomeHue(org) : hashHue(org.speciesId);
     // Slightly exaggerated biological silhouettes keep phenotype legible at ecosystem scale.
-    const heightPx = Math.max(7, org.genome.traits.size * 21 * camera.zoom);
+    const heightPx = Math.max(10, org.genome.traits.size * 30 * camera.zoom);
     const energyFrac = Math.max(0, Math.min(1, org.energy / org.maxEnergy));
 
     let haloHue: number | null = null;

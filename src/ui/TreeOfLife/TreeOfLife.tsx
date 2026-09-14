@@ -1,44 +1,136 @@
-import { useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { SimulationController } from '../../state/simulationController';
 import { geneticDistance } from '../../genetics/genome';
+import type { SpeciesRecord } from '../../simulation/types';
 
-type Branch = { id:number; name:string; from:number; to:number; extinct:boolean; parent:number|null; lane:number; generation:number; population:number; peak:number };
-const hue = (id:number) => (id * 137.508) % 360;
+type Point = { x: number; y: number; angle: number; radius: number; depth: number };
+const hue = (id: number) => (id * 137.508 + 178) % 360;
+const CENTER = { x: 505, y: 360 };
 
 export function TreeOfLife({ controller, onClose }: { controller: SimulationController; onClose: () => void }) {
-  const [selected, setSelected] = useState<number | null>(null);
-  const [view, setView] = useState({ pan: 0, zoom: 1 });
-  const drag = useRef({ active:false, x:0 });
-  const tick = controller.world.tick;
-  const { branches, lanes } = (() => {
-    const ends:number[]=[]; const result:Branch[]=[];
-    for (const s of [...controller.world.species.all()].sort((a,b)=>a.originTick-b.originTick)) {
-      const to=s.extinctTick ?? tick; let lane=ends.findIndex((end)=>end<s.originTick-8); if(lane<0){lane=ends.length;ends.push(to);}else ends[lane]=to;
-      result.push({id:s.id,name:s.name,from:s.originTick,to,extinct:s.extinctTick!==null,parent:s.parentSpeciesId,lane,generation:s.originGeneration,population:s.population,peak:s.peakPopulation});
-    }
-    return { branches:result, lanes:Math.max(1,ends.length) };
-  })();
-  const events=controller.world.events.all().filter((e)=>/mass extinction|meteor|wildfire|plague/i.test(e.message));
-  const w=1280, h=Math.max(560,lanes*30+130), max=Math.max(1,tick);
-  const x=(t:number)=>100+(t/max)*(w-180)*view.zoom+view.pan;
-  const y=(lane:number)=>75+lane*(Math.min(34,Math.max(18,(h-150)/lanes)));
-  const chosen=selected===null?null:controller.world.species.get(selected);
-  const parent=chosen?.parentSpeciesId===null||chosen?.parentSpeciesId===undefined?null:controller.world.species.get(chosen.parentSpeciesId);
+  const [selectedId, setSelectedId] = useState<number | null>(null);
+  const [view, setView] = useState({ x: 0, y: 0, zoom: 1 });
+  const drag = useRef({ active: false, x: 0, y: 0 });
+  const species = useMemo(() => [...controller.world.species.all()].sort((a, b) => a.originTick - b.originTick || a.id - b.id), [controller]);
+  const positions = useMemo(() => radialPositions(species), [species]);
+  const selected = selectedId === null ? null : controller.world.species.get(selectedId);
+  const parent = selected?.parentSpeciesId === null || selected?.parentSpeciesId === undefined ? null : controller.world.species.get(selected.parentSpeciesId);
+  const living = species.filter((item) => item.extinctTick === null);
+  const extinct = species.length - living.length;
+  const scars = controller.world.events.all().filter((event) => /mass extinction|meteor|wildfire|plague|ice age/i.test(event.message)).slice(-4);
 
-  return <div className="tree-galaxy">
-    <header className="tree-header"><div><b>✦ GALAXY OF EVOLUTION</b><span>GENERATION 1 → {controller.world.maxGenerationSeen.toLocaleString()} · {branches.length} LINEAGES ARCHIVED</span></div><div><button className="btn" onClick={()=>setView({pan:0,zoom:1})}>⌖ Reset view</button><button className="btn" onClick={onClose}>✕ Close</button></div></header>
+  const focus = (id: number) => {
+    const point = positions.get(id);
+    if (!point) return;
+    setSelectedId(id);
+    setView({ x: -point.x * .18, y: -point.y * .18, zoom: 1.48 });
+  };
+
+  return <section className="tree-galaxy" aria-label="Tree of Life">
+    <header className="tree-header">
+      <div><b>TREE OF LIFE</b><span>PHYLOGENETIC OBSERVATORY · GENERATION {controller.world.maxGenerationSeen.toLocaleString()}</span></div>
+      <div className="tree-header-actions"><button onClick={() => setView({ x: 0, y: 0, zoom: 1 })}>⌖ RECENTER</button><button onClick={onClose}>×</button></div>
+    </header>
+
     <main className="tree-main">
-      <div className="tree-canvas" onMouseDown={(e)=>drag.current={active:true,x:e.clientX}} onMouseMove={(e)=>{if(drag.current.active){const d=e.clientX-drag.current.x;drag.current.x=e.clientX;setView(v=>({...v,pan:v.pan+d}));}}} onMouseUp={()=>drag.current.active=false} onMouseLeave={()=>drag.current.active=false} onWheel={(e)=>setView(v=>({...v,zoom:Math.max(.45,Math.min(5,v.zoom*(e.deltaY<0?1.13:.88)))}))}>
-        <svg width={w} height={h}>
-          <defs><filter id="livingGlow"><feGaussianBlur stdDeviation="3" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter><pattern id="stars" width="70" height="70" patternUnits="userSpaceOnUse"><circle cx="8" cy="11" r=".7" fill="#d7ddff"/><circle cx="45" cy="31" r=".5" fill="#a5f6ed"/><circle cx="62" cy="58" r=".8" fill="#9675ff"/></pattern></defs>
-          <rect width="100%" height="100%" fill="url(#stars)"/><text x="100" y="34" fill="#8f9ab7" fontSize="10" letterSpacing="2">TIME →</text>
-          {events.map((event)=><g key={event.id}><line x1={x(event.tick)} y1="52" x2={x(event.tick)} y2={h-38} stroke="#ff735b" strokeOpacity=".42" strokeWidth="2"/><text x={x(event.tick)+5} y="65" fill="#ff967d" fontSize="8">EXTINCTION SCAR · G{event.generation}</text></g>)}
-          {branches.map((b)=>{const p=b.parent===null?null:branches.find((candidate)=>candidate.id===b.parent);return <g key={b.id}>{p&&<path d={`M${x(b.from)} ${y(p.lane)} C${x(b.from)-22} ${y(p.lane)},${x(b.from)-22} ${y(b.lane)},${x(b.from)} ${y(b.lane)}`} fill="none" stroke={`hsla(${hue(b.id)},75%,70%,.45)`} strokeWidth="1.4"/>}<line x1={x(b.from)} y1={y(b.lane)} x2={x(b.to)} y2={y(b.lane)} stroke={`hsla(${hue(b.id)},${b.extinct?28:75}%,${b.extinct?42:66}%,${selected===null||selected===b.id?1:.2})`} strokeWidth={b.extinct?1.5:2.5} strokeDasharray={b.extinct?'4 4':undefined} filter={b.extinct?undefined:'url(#livingGlow)'} onClick={()=>setSelected(b.id)} style={{cursor:'pointer'}}/><circle cx={x(b.to)} cy={y(b.lane)} r={b.extinct?3:5} fill={b.extinct?'#586071':`hsl(${hue(b.id)},85%,72%)`} filter={b.extinct?undefined:'url(#livingGlow)'} onClick={()=>setSelected(b.id)} style={{cursor:'pointer'}}/>{(selected===b.id||(!b.extinct&&b.lane%3===0))&&<text x={x(b.to)+7} y={y(b.lane)+3} fontSize="10" fill={b.extinct?'#687185':'#edf8ff'}>{b.name}</text>}</g>;})}
+      <aside className="tree-summary" aria-label="Lineage summary">
+        <Stat label="LIVING SPECIES" value={living.length} accent="life" />
+        <Stat label="EXTINCT SPECIES" value={extinct} accent="extinct" />
+        <Stat label="RECORDED ORGANISMS" value={controller.world.organisms.size.toLocaleString()} accent="organisms" />
+        <div className="tree-key"><span><i className="alive" />LIVING</span><span><i className="gone" />EXTINCT</span><span><i className="selected" />SELECTED</span></div>
+      </aside>
+
+      <div
+        className="tree-radial-canvas"
+        onMouseDown={(event) => { drag.current = { active: true, x: event.clientX, y: event.clientY }; }}
+        onMouseMove={(event) => {
+          if (!drag.current.active) return;
+          const dx = event.clientX - drag.current.x; const dy = event.clientY - drag.current.y;
+          drag.current = { active: true, x: event.clientX, y: event.clientY };
+          setView((current) => ({ ...current, x: current.x + dx, y: current.y + dy }));
+        }}
+        onMouseUp={() => { drag.current.active = false; }}
+        onMouseLeave={() => { drag.current.active = false; }}
+        onWheel={(event) => setView((current) => ({ ...current, zoom: Math.max(.55, Math.min(2.8, current.zoom * (event.deltaY < 0 ? 1.1 : .9))) }))}
+      >
+        <svg viewBox="0 0 1010 720" role="img" aria-label="Radial phylogenetic tree showing living and extinct species">
+          <defs>
+            <radialGradient id="treeNebula"><stop stopColor="#172848" stopOpacity=".68" /><stop offset=".54" stopColor="#090f23" stopOpacity=".56" /><stop offset="1" stopColor="#03060e" stopOpacity="0" /></radialGradient>
+            <filter id="treeGlow"><feGaussianBlur stdDeviation="3" result="blur" /><feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+            <pattern id="treeStars" width="89" height="89" patternUnits="userSpaceOnUse"><circle cx="11" cy="19" r=".65" fill="#daeaff" /><circle cx="61" cy="22" r=".5" fill="#85b3e8" /><circle cx="36" cy="70" r=".72" fill="#96f5df" /></pattern>
+          </defs>
+          <rect width="1010" height="720" fill="url(#treeStars)" />
+          <ellipse cx={CENTER.x} cy={CENTER.y} rx="347" ry="328" fill="url(#treeNebula)" />
+          <g transform={`translate(${CENTER.x + view.x} ${CENTER.y + view.y}) scale(${view.zoom})`}>
+            {scars.map((event, index) => <circle key={event.id} cx="0" cy="0" r={100 + index * 58} fill="none" stroke="#ff816e" strokeOpacity=".2" strokeWidth="1" strokeDasharray="3 7" />)}
+            {[100, 180, 260].map((radius) => <circle key={radius} cx="0" cy="0" r={radius} fill="none" stroke="rgba(156,191,227,.1)" strokeWidth="1" strokeDasharray="2 10" />)}
+            <circle cx="0" cy="0" r="23" fill="#081a22" stroke="#8df1d6" strokeOpacity=".7" filter="url(#treeGlow)" />
+            <text x="0" y="4" fill="#dcfff5" fontSize="8" textAnchor="middle" letterSpacing="1.1">ORIGIN</text>
+            {species.map((item) => <Lineage key={item.id} item={item} positions={positions} selected={selectedId} onSelect={() => focus(item.id)} />)}
+          </g>
         </svg>
+        <p className="tree-radial-help">DRAG TO NAVIGATE · SCROLL TO ZOOM · SELECT A LINEAGE</p>
       </div>
-      <aside className="tree-inspector">{chosen ? <><span>LINEAGE SIGNAL</span><h2>{chosen.name}</h2><b className={chosen.extinctTick===null?'living':'extinct'}>{chosen.extinctTick===null?'● LIVING SPECIES':'○ EXTINCT'}</b><Row label="Origin" value={`Generation ${chosen.originGeneration}`}/><Row label="Lifetime" value={`${chosen.originTick} → ${chosen.extinctTick??tick}`}/><Row label="Population" value={`${chosen.population} now · ${chosen.peakPopulation} peak`}/>{parent&&<Row label="Diverged from" value={parent.name}/>} {parent&&<Row label="Genetic distance" value={geneticDistance(chosen.representativeGenome,parent.representativeGenome).toFixed(3)}/>}<button className="btn primary" onClick={()=>setView({zoom:3,pan:-x(chosen.originTick)*2+360})}>Zoom to branch</button></> : <><span>COMPLETE PHYLOGENY</span><h2>Choose a branch</h2><p>Living species glow. Extinct lineages fade into the background. Vertical scars mark catastrophic population collapses.</p></>}</aside>
+
+      <aside className="tree-inspector">
+        {selected ? <>
+          <span>SELECTED LINEAGE</span><h2>{selected.name}</h2>
+          <b className={selected.extinctTick === null ? 'living' : 'extinct'}>{selected.extinctTick === null ? '● THRIVING' : '○ EXTINCT'}</b>
+          <TreeRow label="Origin" value={`Generation ${selected.originGeneration}`} />
+          <TreeRow label="Current population" value={selected.population.toLocaleString()} />
+          <TreeRow label="Historical peak" value={selected.peakPopulation.toLocaleString()} />
+          {parent && <><TreeRow label="Diverged from" value={parent.name} /><TreeRow label="Genetic distance" value={geneticDistance(selected.representativeGenome, parent.representativeGenome).toFixed(3)} /></>}
+          <button className="tree-focus-button" onClick={() => focus(selected.id)}>FOCUS LINEAGE</button>
+        </> : <>
+          <span>COMPLETE PHYLOGENY</span><h2>Choose a lineage</h2><p>Living branches remain luminous. Extinct branches fade back into the historical record. The rings mark large recorded disturbances.</p>
+          {scars.length > 0 && <div className="tree-scars"><b>HISTORICAL SCARS</b>{scars.map((event) => <span key={event.id}>G{event.generation} · {event.message}</span>)}</div>}
+        </>}
+      </aside>
     </main>
-    <footer>Drag to traverse time · Scroll to zoom · Click a lineage to inspect its complete history</footer>
-  </div>;
+  </section>;
 }
-function Row({label,value}:{label:string;value:string|number}){return <div className="tree-row"><span>{label}</span><b>{value}</b></div>}
+
+function radialPositions(species: SpeciesRecord[]) {
+  const output = new Map<number, Point>();
+  const byId = new Map(species.map((item) => [item.id, item]));
+  const depthFor = (item: SpeciesRecord, seen = new Set<number>()): number => {
+    if (item.parentSpeciesId === null || seen.has(item.id)) return 1;
+    const parent = byId.get(item.parentSpeciesId);
+    return parent ? depthFor(parent, new Set([...seen, item.id])) + 1 : 1;
+  };
+  species.forEach((item, index) => {
+    const angle = -Math.PI / 2 + (index / Math.max(1, species.length)) * Math.PI * 2;
+    const depth = depthFor(item);
+    const radius = 92 + depth * 78 + Math.min(56, item.originGeneration * .7);
+    output.set(item.id, { angle, radius, depth, x: Math.cos(angle) * radius, y: Math.sin(angle) * radius });
+  });
+  return output;
+}
+
+function Lineage({ item, positions, selected, onSelect }: { item: SpeciesRecord; positions: Map<number, Point>; selected: number | null; onSelect: () => void }) {
+  const point = positions.get(item.id);
+  if (!point) return null;
+  const parent = item.parentSpeciesId === null ? undefined : positions.get(item.parentSpeciesId);
+  const parentPoint = parent ?? { x: 0, y: 0, angle: point.angle, radius: 0 };
+  const alive = item.extinctTick === null;
+  const focus = selected === null || selected === item.id;
+  const color = `hsl(${hue(item.id)}, ${alive ? 79 : 25}%, ${alive ? 66 : 48}%)`;
+  const control = Math.max(40, (point.radius - parentPoint.radius) * .72);
+  const cx1 = parentPoint.x + Math.cos(point.angle) * control;
+  const cy1 = parentPoint.y + Math.sin(point.angle) * control;
+  const cx2 = point.x - Math.cos(point.angle) * control * .42;
+  const cy2 = point.y - Math.sin(point.angle) * control * .42;
+  return <g opacity={focus ? 1 : .16} className="tree-lineage">
+    <path d={`M${parentPoint.x} ${parentPoint.y} C${cx1} ${cy1}, ${cx2} ${cy2}, ${point.x} ${point.y}`} fill="none" stroke={color} strokeWidth={alive ? 2.1 : 1.1} strokeDasharray={alive ? undefined : '3 4'} filter={alive ? 'url(#treeGlow)' : undefined} onClick={onSelect} />
+    <circle cx={point.x} cy={point.y} r={alive ? 5.5 : 3.3} fill={color} filter={alive ? 'url(#treeGlow)' : undefined} onClick={onSelect} />
+    {(selected === item.id || (alive && (item.id % 3 === 0 || positions.size === 1))) && <text x={point.x + Math.cos(point.angle) * 11} y={point.y + Math.sin(point.angle) * 11} fill={alive ? '#e9f8ff' : '#8995a8'} fontSize="9" textAnchor={point.x > 0 ? 'start' : 'end'}>{item.name}</text>}
+  </g>;
+}
+
+function Stat({ label, value, accent }: { label: string; value: string | number; accent: string }) {
+  return <div className={`tree-stat ${accent}`}><span>{label}</span><b>{value}</b></div>;
+}
+
+function TreeRow({ label, value }: { label: string; value: string | number }) {
+  return <div className="tree-row"><span>{label}</span><b>{value}</b></div>;
+}

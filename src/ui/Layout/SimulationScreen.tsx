@@ -123,6 +123,12 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
           onGodMode={toggleGodMode}
           onExit={onExit}
         />
+        <SimulationRail
+          onOpenTree={() => setModal('tree')}
+          onOpenTimeMachine={() => setModal('time')}
+          onOpenExperiment={() => setModal('experiment')}
+          onGodMode={toggleGodMode}
+        />
 
         {godArrival && <GodArrival generation={useSimStore.getState().stats?.generation ?? 0} seed={useSimStore.getState().seedDisplay} />}
         {godMode && radialAnchor && !godArrival && <GodPanel controller={controller} anchor={radialAnchor} onClose={() => setRadialAnchor(null)} />}
@@ -130,16 +136,11 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
         {impact && <MeteorImpactReport impact={impact} />}
         {evolutionVision && <EvolutionVision speciesCount={species.length} />}
 
-      {/* A single flex row anchors World (left), the timeline (center, takes remaining
-          space), and the Creature inspector (right) so they never overlap regardless of
-          viewport width or how tall the World panel expands. */}
-        <div style={{ position: 'absolute', left: 16, right: 16, bottom: 16, zIndex: 15, display: 'flex', alignItems: 'flex-end', gap: 16 }}>
+        <div className="sim-bottom-bar">
           <WorldPanel />
-          <div style={{ flex: 1, display: 'flex', justifyContent: 'center' }}>
-            <BottomTimeline controller={controller} onOpen={() => setModal('time')} />
-          </div>
-          {inspector ? <CreatureInspector controller={controller} /> : <div />}
+          <BottomTimeline controller={controller} onOpen={() => setModal('time')} />
         </div>
+        {inspector && <div className="creature-inspector-slot"><CreatureInspector controller={controller} /></div>}
 
         <DeathToast />
 
@@ -152,6 +153,20 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
       {!introComplete && <WorldBootSequence mode={bootMode} seed={config.seed} generation={controller.world.maxGenerationSeen} events={controller.world.events.all()} onComplete={finishIntroduction} />}
     </div>
   );
+}
+
+function SimulationRail({ onOpenTree, onOpenTimeMachine, onOpenExperiment, onGodMode }: { onOpenTree: () => void; onOpenTimeMachine: () => void; onOpenExperiment: () => void; onGodMode: () => void }) {
+  const evolutionVision = useSimStore((s) => s.evolutionVision);
+  const setEvolutionVision = useSimStore((s) => s.setEvolutionVision);
+
+  return <aside className="sim-rail" aria-label="World tools">
+    <button className={evolutionVision ? 'is-active' : ''} onClick={() => setEvolutionVision(!evolutionVision)} title="Evolution Vision" aria-label="Toggle Evolution Vision"><span>⌬</span><small>EVOLVE</small></button>
+    <button onClick={onOpenTree} title="Tree of Life" aria-label="Open Tree of Life"><span>⌁</span><small>LINEAGE</small></button>
+    <button onClick={onOpenTimeMachine} title="Evolutionary timeline" aria-label="Open evolutionary timeline"><span>◷</span><small>HISTORY</small></button>
+    <button onClick={onOpenExperiment} title="Experiments" aria-label="Open experiment lab"><span>◈</span><small>LAB</small></button>
+    <i />
+    <button className="sim-rail-god" onClick={onGodMode} title="God Mode" aria-label="Toggle God Mode"><span>ϟ</span><small>GOD</small></button>
+  </aside>;
 }
 
 function GodArrival({ generation, seed }: { generation: number; seed: string }) {
