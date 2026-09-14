@@ -101,7 +101,11 @@ export const DEFAULT_LAWS: DivineLaws = {
   reproductionCostMultiplier: 1,
   predationEffectiveness: 1,
   plantGrowthRate: 1,
-  carryingCapacity: 4000,
+  // Tuned for the reference 3200-unit default world (~1800 stabilized population, ~12ms
+  // simulation tick — see createWorld, which scales this by world area for other sizes).
+  // The previous default of 4000 let populations climb into the 5000-6000+ range where a
+  // single tick could take 50-70ms, the "lagging like crazy" symptom.
+  carryingCapacity: 1600,
 };
 
 export interface SpeciesRecord {

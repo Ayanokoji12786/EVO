@@ -15,7 +15,7 @@ import { EventLog } from '../history/eventLog';
 import { HistoryStore } from '../statistics/historyStore';
 import { SpatialHash } from './spatialHash';
 import { computeStats } from '../statistics/stats';
-import { TICKS_PER_DAY, ENERGY, COMBAT, STATS_INTERVAL_TICKS, REBUILD_HASH_CELL_FRACTION } from './constants';
+import { TICKS_PER_DAY, ENERGY, COMBAT, STATS_INTERVAL_TICKS, REBUILD_HASH_CELL_FRACTION, HARD_POPULATION_CEILING_FACTOR } from './constants';
 import { recordBirth, killOrganism } from './genealogy';
 
 export function createWorld(config: WorldConfig): WorldState {
@@ -68,7 +68,11 @@ export function createWorld(config: WorldConfig): WorldState {
     terrain,
     food,
     climate,
-    laws: { ...DEFAULT_LAWS },
+    // Per-tick simulation cost scales roughly with population squared (every organism's
+    // vision query revisits every nearby organism/food item), so the default carrying
+    // capacity is tuned to the reference 3200-unit world and scaled by area for other
+    // world sizes rather than left as a flat number that gets punishing on larger worlds.
+    laws: { ...DEFAULT_LAWS, carryingCapacity: Math.round(DEFAULT_LAWS.carryingCapacity * (config.worldSize / 3200) ** 2) },
     mutationSettings: { ...DEFAULT_MUTATION_SETTINGS },
     disease: { active: false, transmissionRate: 0, mortality: 0, incubationPeriod: 0, recoveryChance: 0, mutationRate: 0 },
     species,
@@ -133,6 +137,7 @@ export function stepWorld(state: WorldState, dt: number) {
   // This is a population-level feedback, not a hard cap — well-adapted individuals still
   // out-survive others under the same crowding stress.
   const crowding = Math.max(0, living.length / state.laws.carryingCapacity - 1);
+  const atHardCeiling = living.length >= state.laws.carryingCapacity * HARD_POPULATION_CEILING_FACTOR;
 
   for (const org of living) {
     if (!org.alive) continue;
@@ -242,8 +247,9 @@ export function stepWorld(state: WorldState, dt: number) {
       }
     }
 
-    // Reproduction
-    if (decision.wantsToReproduce && org.alive) {
+    // Reproduction — gated by the hard population ceiling above; everything else about
+    // who gets to reproduce (energy threshold, maturity, the decision itself) is untouched.
+    if (decision.wantsToReproduce && org.alive && !atHardCeiling) {
       const kids = reproduceAsexual(org, state.rng, state.mutationSettings, state.tick, () => allocateOrganismId(state), state.unlockedGenes);
       for (const kid of kids) {
         kid.speciesId = state.species.classifyNewborn(kid, org.speciesId, state.tick);
@@ -280,7 +286,14 @@ export function stepWorld(state: WorldState, dt: number) {
   }
   state.deaths += deathsThisTick;
   state.totalDeaths += deathsThisTick;
-  for (const kid of newborns) {
+  // The per-organism reproduction gate above uses one population snapshot from the start
+  // of the tick, so many organisms crossing their reproduction threshold in the same tick
+  // (common right after a population boom, since a cohort tends to mature in lockstep) can
+  // still admit a burst of newborns that overshoots the hard ceiling in a single step.
+  // Truncate here so no single tick can push the world meaningfully past the ceiling.
+  const admitCap = Math.max(0, Math.round(state.laws.carryingCapacity * HARD_POPULATION_CEILING_FACTOR) - living.length);
+  const admitted = atHardCeiling ? [] : newborns.slice(0, admitCap);
+  for (const kid of admitted) {
     state.organisms.set(kid.id, kid);
     recordBirth(state, kid);
   }

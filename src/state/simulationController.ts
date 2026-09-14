@@ -205,13 +205,22 @@ export class SimulationController {
         god.paintRainfall(this.world, worldX, worldY, action.radius, action.intensity, action.duration);
         break;
       case 'mutate': {
-        let closest: Organism | null = null;
-        let distance = Infinity;
-        for (const organism of this.world.organisms.values()) {
-          const d = Math.hypot(organism.x - worldX, organism.y - worldY);
-          if (organism.alive && d < distance) { closest = organism; distance = d; }
+        // Radius must scale with zoom — a fixed world-unit radius means the same click
+        // tolerance shrinks to nothing when zoomed out (a world-unit here can be a
+        // fraction of a screen pixel), which silently no-ops the action with no feedback.
+        // Query via the spatial hash instead of scanning every organism, and widen search
+        // rings until something is found so the nearest visible creature always mutates.
+        const baseRadius = 90 / Math.max(0.05, this.camera.zoom);
+        const found: { organism: Organism | null; distance: number } = { organism: null, distance: Infinity };
+        for (const radius of [baseRadius, baseRadius * 3, baseRadius * 8]) {
+          this.world.orgHash.queryRadius(worldX, worldY, radius, (organism) => {
+            if (!organism.alive) return;
+            const d = Math.hypot(organism.x - worldX, organism.y - worldY);
+            if (d < found.distance) { found.organism = organism; found.distance = d; }
+          });
+          if (found.organism) break;
         }
-        if (closest && distance < 80) god.forceMutate(this.world, closest.id);
+        if (found.organism) god.forceMutate(this.world, found.organism.id);
         break;
       }
       case 'meteor':
