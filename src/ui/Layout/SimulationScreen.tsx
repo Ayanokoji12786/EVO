@@ -18,9 +18,14 @@ import type { WorldBootMode } from '../Opening/worldBoot';
 import { seasonalFactor } from '../../environment/climate';
 import { WorldCard } from './WorldCard';
 import { CompassBiome } from './CompassBiome';
-import { SimulationRail } from './SimulationRail';
+import { SimulationRail, type RailTool } from './SimulationRail';
+import type { GodCategory } from '../GodMode/GodPanel';
 
 type Modal = 'tree' | 'time' | 'experiment' | 'about' | 'cinematic' | null;
+
+// Fixed wheel position, independent of any click/anchor — matches the reference, where
+// the radial always opens in the same place rather than following the cursor.
+const GOD_WHEEL_ANCHOR = { x: 360, y: 420 };
 
 export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { config: WorldConfig; onExit: () => void; bootMode?: WorldBootMode }) {
   // The controller owns a rAF loop and a canvas attachment, so it must be created and
@@ -31,6 +36,8 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
   const [modal, setModal] = useState<Modal>(null);
   const [godArrival, setGodArrival] = useState(false);
   const [radialAnchor, setRadialAnchor] = useState<{ x: number; y: number } | null>(null);
+  const [godInitialLayer, setGodInitialLayer] = useState<GodCategory | null>(null);
+  const [activeRailTool, setActiveRailTool] = useState<RailTool>('world');
   const [impact, setImpact] = useState<{ before: number; after: number; eliminated: number; percent: number; extinctSpecies: number; survivors: number } | null>(null);
   const [introComplete, setIntroComplete] = useState(false);
   const restoreSpeed = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -95,22 +102,34 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
 
   if (!controller) return null;
 
-  const toggleGodMode = () => {
-    if (godMode) {
+  const enterGodWheel = (tool: RailTool, initialLayer: GodCategory | null) => {
+    setActiveRailTool(tool);
+    setGodInitialLayer(initialLayer);
+    setRadialAnchor(GOD_WHEEL_ANCHOR);
+    if (!godMode) {
+      setGodMode(true);
+      setGodArrival(true);
+      setSpeed(1);
+      controller.zoom(0.88);
+      restoreSpeed.current = setTimeout(() => {
+        setGodArrival(false);
+        setSpeed(speed);
+      }, 700);
+    }
+  };
+
+  const handleSelectTool = (tool: RailTool) => {
+    if (tool === 'world') {
+      setActiveRailTool('world');
       setGodMode(false);
-      setGodArrival(false);
+      setPending(null);
       setRadialAnchor(null);
+      setGodInitialLayer(null);
       return;
     }
-    setGodMode(true);
-    setRadialAnchor({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
-    setGodArrival(true);
-    setSpeed(1);
-    controller.zoom(0.88);
-    restoreSpeed.current = setTimeout(() => {
-      setGodArrival(false);
-      setSpeed(speed);
-    }, 700);
+    if (tool === 'tools') { setActiveRailTool('tools'); setModal('experiment'); return; }
+    if (tool === 'analytics') { setActiveRailTool('analytics'); setModal('time'); return; }
+    enterGodWheel(tool, tool === 'weather' ? 'weather' : null);
   };
 
   // Simulated "year" from the world's tick — ticks per year is arbitrary but derived so
@@ -122,7 +141,7 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
 
   return (
     <div className={godArrival ? 'god-arrival-active' : ''} style={{ position: 'absolute', inset: 0 }} data-godmode={godMode ? 'true' : 'false'}>
-      <WorldCanvas controller={controller} onGodInvoke={(point) => !godArrival && setRadialAnchor(point)} onMeteorImpact={(report) => { setImpact(report); window.setTimeout(() => setImpact(null), 4300); }} />
+      <WorldCanvas controller={controller} onMeteorImpact={(report) => { setImpact(report); window.setTimeout(() => setImpact(null), 4300); }} />
       {introComplete && <div className="simulation-ui is-visible">
         <TopBar
           onOpenTree={() => setModal('tree')}
@@ -130,19 +149,20 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
           onOpenExperiment={() => setModal('experiment')}
           onOpenAbout={() => setModal('about')}
           onOpenCinematic={() => setModal('cinematic')}
-          onGodMode={toggleGodMode}
           onExit={onExit}
         />
         <WorldCard seed={seedDisplay} climate={config.climate} year={worldYear} tempC={worldTempC} />
-        <SimulationRail
-          onOpenTree={() => setModal('tree')}
-          onOpenTimeMachine={() => setModal('time')}
-          onOpenExperiment={() => setModal('experiment')}
-          onGodMode={toggleGodMode}
-        />
+        <SimulationRail activeTool={activeRailTool} onSelectTool={handleSelectTool} />
 
         {godArrival && <GodArrival generation={useSimStore.getState().stats?.generation ?? 0} seed={useSimStore.getState().seedDisplay} />}
-        {godMode && radialAnchor && !godArrival && <GodPanel controller={controller} anchor={radialAnchor} onClose={() => setRadialAnchor(null)} />}
+        {godMode && radialAnchor && !godArrival && (
+          <GodPanel
+            controller={controller}
+            anchor={radialAnchor}
+            initialLayer={godInitialLayer}
+            onClose={() => { setRadialAnchor(null); setGodInitialLayer(null); }}
+          />
+        )}
         {rainBrush && <RainBrushPanel action={rainBrush} onChange={setPending} />}
         {impact && <MeteorImpactReport impact={impact} />}
         {evolutionVision && <EvolutionVision speciesCount={species.length} />}

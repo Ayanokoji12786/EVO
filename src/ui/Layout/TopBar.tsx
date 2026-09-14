@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useSimStore, type SpeedSetting } from '../../state/simStore';
 
-const SPEEDS: SpeedSetting[] = [1, 5, 10, 'max'];
+const SPEEDS: SpeedSetting[] = [1, 5, 'max'];
 
 export function TopBar({
   onOpenTree,
@@ -9,7 +9,6 @@ export function TopBar({
   onOpenExperiment,
   onOpenAbout,
   onOpenCinematic,
-  onGodMode,
   onExit,
 }: {
   onOpenTree: () => void;
@@ -17,12 +16,10 @@ export function TopBar({
   onOpenExperiment: () => void;
   onOpenAbout: () => void;
   onOpenCinematic: () => void;
-  onGodMode: () => void;
   onExit: () => void;
 }) {
   const speed = useSimStore((s) => s.speed);
   const paused = useSimStore((s) => s.paused);
-  const godMode = useSimStore((s) => s.godMode);
   const stats = useSimStore((s) => s.stats);
   const setSpeed = useSimStore((s) => s.setSpeed);
   const setPaused = useSimStore((s) => s.setPaused);
@@ -65,7 +62,7 @@ export function TopBar({
       <div className="sim-topbar-spacer" />
 
       <div className="sim-time-controls" aria-label="Simulation speed">
-        <button className={`sim-time-btn ${paused ? 'active' : ''}`} onClick={() => setPaused(!paused)} title="Pause / Play" aria-label={paused ? 'Play' : 'Pause'}>
+        <button className={`sim-time-btn sim-time-btn-icon ${paused ? 'active' : ''}`} onClick={() => setPaused(!paused)} title="Pause / Play" aria-label={paused ? 'Play' : 'Pause'}>
           {paused ? '▶' : '❚❚'}
         </button>
         {SPEEDS.map((s) => (
@@ -77,15 +74,19 @@ export function TopBar({
             {s === 'max' ? '100×' : `${s}×`}
           </button>
         ))}
+        <span className="sim-time-chevrons" aria-hidden="true">⌃<br />⌄</span>
       </div>
 
+      <button className={`sim-icon-btn ${evolutionVision ? 'active' : ''}`} onClick={() => setEvolutionVision(!evolutionVision)} title="Evolution Vision" aria-label="Toggle Evolution Vision">
+        <SunIcon />
+      </button>
+
       <div ref={menuRef} className="sim-overflow-menu">
-        <button className={`sim-icon-btn ${menuOpen ? 'active' : ''}`} onClick={() => setMenuOpen((v) => !v)} title="More views" aria-label="More views">
-          ⋯
+        <button className={`sim-icon-btn ${menuOpen ? 'active' : ''}`} onClick={() => setMenuOpen((v) => !v)} title="Settings & more views" aria-label="Settings and more views">
+          <GearIcon />
         </button>
         {menuOpen && (
           <div className="sim-overflow-panel hud-panel">
-            <MenuItem icon="🧬" label={evolutionVision ? 'Exit Evolution Vision' : 'Evolution Vision'} onClick={() => { setEvolutionVision(!evolutionVision); setMenuOpen(false); }} />
             <MenuItem icon="🌳" label="Tree of Life" onClick={() => { onOpenTree(); setMenuOpen(false); }} />
             <MenuItem icon="⏱" label="Time Machine" onClick={() => { onOpenTimeMachine(); setMenuOpen(false); }} />
             <MenuItem icon="🧪" label="Experiments" onClick={() => { onOpenExperiment(); setMenuOpen(false); }} />
@@ -96,13 +97,6 @@ export function TopBar({
           </div>
         )}
       </div>
-
-      <button
-        className={`sim-god-control ${godMode ? 'active' : ''}`}
-        onClick={onGodMode}
-      >
-        <span>⚡</span>GOD MODE
-      </button>
     </header>
   );
 }
@@ -136,8 +130,14 @@ function PopulationIcon() {
   return <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="8" r="3" /><circle cx="17" cy="9" r="2.4" /><path d="M3 20c0-3 3-5 6-5s6 2 6 5" /><path d="M14 20c0-2 2-4 4.5-4s3.5 1.4 3.5 4" /></svg>;
 }
 function DnaIcon() {
-  return <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M7 3c0 5 10 5 10 10s-10 5-10 10" /><path d="M17 3c0 5-10 5-10 10s10 5 10 10" /><path d="M8 7h8M8 17h8M9 11h6M9 13h6" /></svg>;
+  return <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v3M12 19v3M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z" /><path d="M5 12h1M18 12h1" /></svg>;
 }
 function PulseIcon() {
   return <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12h4l2-6 3 12 3-8 2 4h4" /></svg>;
+}
+function SunIcon() {
+  return <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><circle cx="12" cy="12" r="4.2" /><path d="M12 2.5v2.4M12 19.1v2.4M4.2 4.2l1.7 1.7M18.1 18.1l1.7 1.7M2.5 12h2.4M19.1 12h2.4M4.2 19.8l1.7-1.7M18.1 5.9l1.7-1.7" /></svg>;
+}
+function GearIcon() {
+  return <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3" /><path d="M19.4 13.5a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V19.6a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.1-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.7 1.7 0 0 0 .34-1.87 1.7 1.7 0 0 0-1.55-1H2.4a2 2 0 1 1 0-4h.09a1.7 1.7 0 0 0 1.55-1.1 1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.7 1.7 0 0 0 1.87.34H8.5a1.7 1.7 0 0 0 1-1.55V2.4a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V8.5a1.7 1.7 0 0 0 1.55 1H21.6a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.55 1z" /></svg>;
 }

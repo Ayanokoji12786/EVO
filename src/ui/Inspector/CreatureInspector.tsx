@@ -8,8 +8,7 @@ const CORE_TRAITS = [
   { key: 'visionRadius', label: 'Vision', range: [20, 260] },
   { key: 'metabolism', label: 'Metabolism', range: [.5, 2.6] },
   { key: 'aggression', label: 'Aggression', range: [0, 1] },
-  { key: 'tempToleranceRange', label: 'Cold tolerance', range: [.15, 1.4] },
-  { key: 'size', label: 'Body size', range: [.4, 2.2] },
+  { key: 'tempToleranceRange', label: 'Cold Tolerance', range: [.15, 1.4] },
 ] as const;
 
 export function CreatureInspector({ controller }: { controller: SimulationController }) {
@@ -30,33 +29,25 @@ export function CreatureInspector({ controller }: { controller: SimulationContro
     <section className="creature-inspector hud-panel" aria-label={`Creature inspector for ${inspector.name}`}>
       <header className="creature-inspector-header">
         <div>
-          <small>ORGANISM OBSERVATION</small>
           <h2>{inspector.name}</h2>
-          <p>Species: <b>{inspector.speciesName}</b></p>
+          <p>{inspector.speciesName}</p>
         </div>
         <button className="creature-close" onClick={() => controller.select(null)} aria-label="Close creature inspector">×</button>
       </header>
 
       <div className="creature-specimen-frame">
         <CreatureSpecimen controller={controller} organismId={inspector.id} />
-        <span>LIVE PHENOTYPE</span>
         {!inspector.alive && <em>DECEASED · {inspector.causeOfDeath ?? 'CAUSE UNRECORDED'}</em>}
       </div>
 
-      <div className="creature-vitals">
-        <Vital label="Generation" value={inspector.generation} />
-        <Vital label="Age" value={`${inspector.age}`} suffix={`/ ${inspector.lifespanCap}`} />
-        <Vital label="Energy" value={`${energy}%`} accent />
+      <div className="creature-stat-rows">
+        <StatRow label="Generation" value={inspector.generation} />
+        <StatRow label="Age" value={inspector.age} />
+        <StatRow label="Energy" value={`${energy}%`}><i className="creature-stat-bar"><b style={{ width: `${energy}%` }} /></i></StatRow>
       </div>
 
-      {inspector.alive && (
-        <button className={`creature-follow ${isFollowing ? 'is-following' : ''}`} onClick={() => controller.follow(isFollowing ? null : inspector.id)}>
-          <span>{isFollowing ? '◉' : '◎'}</span>{isFollowing ? 'FOLLOWING ORGANISM' : 'FOLLOW ORGANISM'}
-        </button>
-      )}
-
       <section className="creature-genome">
-        <div className="creature-section-title"><span>GENOME</span><small>HERITABLE TRAITS</small></div>
+        <div className="creature-section-title"><span>GENOME</span><a onClick={() => setShowGenome((open) => !open)}>{showGenome ? 'Hide Full Genome' : 'View Full Genome'} →</a></div>
         {CORE_TRAITS.map(({ key, label, range }) => {
           const value = inspector.traits[key];
           if (value === undefined) return null;
@@ -64,30 +55,38 @@ export function CreatureInspector({ controller }: { controller: SimulationContro
         })}
       </section>
 
-      <section className="creature-mutations">
-        <div className="creature-section-title"><span>RECENT MUTATIONS</span><small>{mutations.length ? 'LINEAGE DELTAS' : 'STABLE LINEAGE'}</small></div>
-        {mutations.length > 0
-          ? mutations.map((trait) => <p key={trait}><b>▲</b>{formatTrait(trait)} <small>Inherited variation</small></p>)
-          : <p className="mutation-stable"><b>●</b>No notable trait drift recorded</p>}
-      </section>
+      {showGenome && <>
+        <section className="creature-mutations">
+          <div className="creature-section-title"><span>RECENT MUTATIONS</span></div>
+          {mutations.length > 0
+            ? mutations.map((trait) => <p key={trait}><b>▲</b>{formatTrait(trait)} <small>Inherited variation</small></p>)
+            : <p className="mutation-stable"><b>●</b>No notable trait drift recorded</p>}
+        </section>
+
+        <div className="creature-detail-drawer">
+          <DetailRow label="Body size" value={inspector.traits.size?.toFixed(2) ?? '—'} />
+          <DetailRow label="Parent" value={inspector.parentId === null ? 'FIRST LINEAGE' : `EVO-${inspector.parentId}`} />
+          <DetailRow label="Offspring" value={inspector.offspringCount} />
+          <DetailRow label="Food gathered" value={inspector.foodEaten} />
+          <DetailRow label="Distance travelled" value={`${inspector.distanceTravelled} m`} />
+          <DetailRow label="Predation / escapes" value={`${inspector.kills} / ${inspector.escapes}`} />
+          {godMode && inspector.alive && <div className="creature-divine-actions">
+            <button onClick={() => controller.god.bless(controller.world, inspector.id)}>BLESS</button>
+            <button onClick={() => controller.god.forceMutate(controller.world, inspector.id)}>MUTATE</button>
+            <button onClick={() => controller.god.protectLineage(controller.world, inspector.id)}>PROTECT</button>
+          </div>}
+        </div>
+      </>}
 
       <footer className="creature-actions">
-        <button onClick={() => setOverlay('ancestry', inspector.id)}><span>⌁</span>ANCESTRY</button>
-        <button className={showGenome ? 'is-active' : ''} onClick={() => setShowGenome((open) => !open)}><span>⌬</span>GENOME</button>
+        {inspector.alive && (
+          <button className={isFollowing ? 'is-active' : ''} onClick={() => controller.follow(isFollowing ? null : inspector.id)}>
+            <span>{isFollowing ? '◉' : '◎'}</span>Follow
+          </button>
+        )}
+        <button onClick={() => setOverlay('ancestry', inspector.id)}><span>⌁</span>Ancestry</button>
+        <button className="creature-view-details" onClick={() => setShowGenome((open) => !open)}>Genome<span>→</span></button>
       </footer>
-
-      {showGenome && <div className="creature-detail-drawer">
-        <DetailRow label="Parent" value={inspector.parentId === null ? 'FIRST LINEAGE' : `EVO-${inspector.parentId}`} />
-        <DetailRow label="Offspring" value={inspector.offspringCount} />
-        <DetailRow label="Food gathered" value={inspector.foodEaten} />
-        <DetailRow label="Distance travelled" value={`${inspector.distanceTravelled} m`} />
-        <DetailRow label="Predation / escapes" value={`${inspector.kills} / ${inspector.escapes}`} />
-        {godMode && inspector.alive && <div className="creature-divine-actions">
-          <button onClick={() => controller.god.bless(controller.world, inspector.id)}>BLESS</button>
-          <button onClick={() => controller.god.forceMutate(controller.world, inspector.id)}>MUTATE</button>
-          <button onClick={() => controller.god.protectLineage(controller.world, inspector.id)}>PROTECT</button>
-        </div>}
-      </div>}
     </section>
   );
 }
@@ -128,12 +127,12 @@ function CreatureSpecimen({ controller, organismId }: { controller: SimulationCo
 function TraitBar({ label, value, min, max, mutated, onHover, gene }: { label: string; value: number; min: number; max: number; mutated: boolean; onHover: (gene: string | null) => void; gene: string }) {
   const fraction = Math.max(0, Math.min(1, (value - min) / (max - min)));
   return <div className="creature-trait" onMouseEnter={() => onHover(gene)} onMouseLeave={() => onHover(null)}>
-    <span>{label}</span><i><b style={{ width: `${fraction * 100}%` }} /></i><strong>{value.toFixed(value < 10 ? 2 : 0)}</strong>{mutated && <em>▲</em>}
+    <span>{label}</span><i><b style={{ width: `${fraction * 100}%` }} /></i>{mutated && <em>▲</em>}
   </div>;
 }
 
-function Vital({ label, value, suffix, accent }: { label: string; value: string | number; suffix?: string; accent?: boolean }) {
-  return <div><span>{label}</span><strong className={accent ? 'is-accent' : ''}>{value}<small>{suffix}</small></strong></div>;
+function StatRow({ label, value, children }: { label: string; value: string | number; children?: React.ReactNode }) {
+  return <div className="creature-stat-row"><span>{label}</span>{children}<b>{value}</b></div>;
 }
 
 function DetailRow({ label, value }: { label: string; value: string | number }) {

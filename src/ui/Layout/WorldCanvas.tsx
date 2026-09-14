@@ -4,7 +4,7 @@ import { useSimStore } from '../../state/simStore';
 
 type Impact = { before: number; after: number; eliminated: number; percent: number; extinctSpecies: number; survivors: number };
 
-export function WorldCanvas({ controller, onGodInvoke, onMeteorImpact }: { controller: SimulationController; onGodInvoke?: (point: { x: number; y: number }) => void; onMeteorImpact?: (impact: Impact) => void }) {
+export function WorldCanvas({ controller, onMeteorImpact }: { controller: SimulationController; onMeteorImpact?: (impact: Impact) => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const dragState = useRef<{ dragging: boolean; moved: boolean; lastX: number; lastY: number }>({
@@ -56,11 +56,6 @@ export function WorldCanvas({ controller, onGodInvoke, onMeteorImpact }: { contr
           if (rainEquipped && e.button === 0) { paintRain(e); lastRainStroke.current = performance.now(); return; }
           dragState.current = { dragging: true, moved: false, lastX: e.clientX, lastY: e.clientY };
           setIsDragging(true);
-        }}
-        onContextMenu={(e) => {
-          if (!useSimStore.getState().godMode || !onGodInvoke) return;
-          e.preventDefault();
-          onGodInvoke({ x: e.clientX, y: e.clientY });
         }}
         onMouseMove={(e) => {
           if (rainEquipped) {

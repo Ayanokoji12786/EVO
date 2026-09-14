@@ -3,7 +3,8 @@ import type { SimulationController } from '../../state/simulationController';
 import { useSimStore, type PendingGodAction } from '../../state/simStore';
 import type { TerrainType } from '../../simulation/types';
 
-type Category = 'weather' | 'life' | 'evolution' | 'destruction' | 'terraform' | 'disease' | 'predators' | 'laws';
+export type GodCategory = 'weather' | 'life' | 'evolution' | 'destruction' | 'terraform' | 'disease' | 'predators' | 'laws';
+type Category = GodCategory;
 
 const ROOT_ACTIONS: { id: Category; icon: string; label: string; hint: string }[] = [
   { id: 'weather', icon: '🌧', label: 'WEATHER', hint: 'Command the sky' },
@@ -21,8 +22,8 @@ const WEATHER = [
   ['snow', '❄', 'SNOW'], ['heat', '🔥', 'HEAT WAVE'], ['ice', '🧊', 'ICE AGE'],
 ] as const;
 
-export function GodPanel({ controller, anchor, onClose }: { controller: SimulationController; anchor: { x: number; y: number }; onClose: () => void }) {
-  const [layer, setLayer] = useState<Category | null>(null);
+export function GodPanel({ controller, anchor, initialLayer, onClose }: { controller: SimulationController; anchor: { x: number; y: number }; initialLayer?: Category | null; onClose: () => void }) {
+  const [layer, setLayer] = useState<Category | null>(initialLayer ?? null);
   const setPending = useSimStore((s) => s.setPendingGodAction);
   const stats = useSimStore((s) => s.stats);
   const seed = useSimStore((s) => s.seedDisplay);
@@ -61,29 +62,49 @@ export function GodPanel({ controller, anchor, onClose }: { controller: Simulati
     onClose();
   };
 
-  const entries = layer === 'weather' ? WEATHER.map(([id, icon, label]) => ({ id, icon, label })) : ROOT_ACTIONS;
-  const radius = layer === 'weather' ? 144 : 178;
-  const menuScale = Math.min(1, (window.innerWidth - 24) / 460, (window.innerHeight - 24) / 460);
-  const margin = 230 * menuScale;
+  const radius = 150;
+  const menuScale = Math.min(1, (window.innerWidth - 24) / 420, (window.innerHeight - 24) / 420);
+  const margin = 210 * menuScale;
   const safeX = Math.max(margin, Math.min(window.innerWidth - margin, anchor.x));
   const safeY = Math.max(margin, Math.min(window.innerHeight - margin, anchor.y));
 
   return (
     <div className="god-radial-backdrop" onMouseDown={onClose}>
+      <div className="god-mode-heading" style={{ left: Math.max(24, safeX - 330 * menuScale), top: Math.max(88, safeY - 240 * menuScale) }}>
+        <b><span aria-hidden="true">⚡</span> GOD MODE</b>
+        <small>SHAPE. TEST. OBSERVE. REPEAT.</small>
+      </div>
       <div className="god-radial" style={{ left: safeX, top: safeY, transform: `scale(${menuScale})` }} onMouseDown={(event) => event.stopPropagation()}>
         <div className="god-radial-center">
-          <span>{layer === 'weather' ? '🌦' : '✦'}</span>
-          <strong>{layer === 'weather' ? 'WEATHER' : 'DIVINE WILL'}</strong>
-          <small>{layer === 'weather' ? 'CHOOSE AN OMEN' : 'RIGHT-CLICK TO COMMAND'}</small>
+          <span>✦</span>
         </div>
-        {entries.map((item, index) => {
-          const angle = -Math.PI / 2 + (Math.PI * 2 * index) / entries.length;
+        {ROOT_ACTIONS.map((item, index) => {
+          const angle = -Math.PI / 2 + (Math.PI * 2 * index) / ROOT_ACTIONS.length;
           const x = Math.cos(angle) * radius;
           const y = Math.sin(angle) * radius;
-          return <button key={item.id} className="god-radial-action" style={{ transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))` }} onClick={() => layer === 'weather' ? weather(item.id as (typeof WEATHER)[number][0]) : choose(item.id as Category)} title={'hint' in item ? item.hint : item.label}><span className="god-radial-icon">{item.icon}</span><span>{item.label}</span></button>;
+          return (
+            <button
+              key={item.id}
+              className={`god-radial-action ${layer === item.id ? 'is-active' : ''}`}
+              style={{ transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))` }}
+              onClick={() => choose(item.id)}
+              title={item.hint}
+            >
+              <span className="god-radial-icon">{item.icon}</span><span>{item.label}</span>
+            </button>
+          );
         })}
         <div className="god-radial-status">WORLD {seed || '7F3A'} · GENERATION {(stats?.generation ?? 0).toLocaleString()}</div>
       </div>
+      {layer === 'weather' && (
+        <div className="god-weather-list" style={{ left: safeX + 168 * menuScale, top: safeY - 108 * menuScale }} onMouseDown={(event) => event.stopPropagation()}>
+          {WEATHER.map(([id, icon, label]) => (
+            <button key={id} className={id === 'rain' ? 'is-active' : ''} onClick={() => weather(id)}>
+              <span>{icon}</span>{label}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
