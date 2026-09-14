@@ -257,6 +257,12 @@ export class SimulationController {
       case 'introducePredator':
         god.introducePredator(this.world, worldX, worldY);
         break;
+      case 'predatorPack': {
+        const livingCount = [...this.world.organisms.values()].filter((o) => o.alive).length;
+        const count = Math.max(3, Math.round(livingCount * 0.2));
+        god.introducePredatorPack(this.world, worldX, worldY, count, action.radius);
+        break;
+      }
       case 'teleportSelected':
         if (store.selectedId !== null) god.teleport(this.world, store.selectedId, worldX, worldY);
         break;

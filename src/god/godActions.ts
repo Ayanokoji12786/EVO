@@ -258,18 +258,61 @@ export function placeCreature(state: WorldState, spec: CustomCreatureSpec, x: nu
   return org;
 }
 
-export function introducePredator(state: WorldState, x: number, y: number): Organism {
+// A God-spawned predator still runs through exactly the same engine rules as every other
+// organism — same aging, energy, hunting, and reproduction code path, nothing
+// special-cased. What's tuned here is only its *starting genome*: diet/aggression/speed/
+// size make it a credible apex hunter, and reproductionThreshold/reproductionCost/
+// offspringCount/cooldown are deliberately conservative so a spawned pack doesn't
+// immediately out-breed the population it's meant to hunt — a fresh predator arrives at
+// 75% energy (see createOrganism) with only a 5-15 tick cooldown by default, which for a
+// hunter that refuels fast off kills reads as "reproduces insanely fast".
+function predatorGenome(state: WorldState) {
   const genome = randomGenome(state.rng.fork());
   genome.traits.diet = 0.9;
   genome.traits.aggression = 0.8;
   genome.traits.maxSpeed = Math.max(genome.traits.maxSpeed, 1.6);
   genome.traits.size = Math.max(genome.traits.size, 1.2);
+  genome.traits.reproductionThreshold = 0.88;
+  genome.traits.reproductionCost = 0.5;
+  genome.traits.offspringCount = 1;
+  return genome;
+}
+
+function spawnPredator(state: WorldState, x: number, y: number): Organism {
+  const genome = predatorGenome(state);
   const org = createOrganism(allocateOrganismId(state), genome, x, y, state.rng, { generation: 0, birthTick: state.tick });
-  org.speciesId = state.species.createFounderSpecies(org, state.tick);
+  org.reproductionCooldown = state.rng.range(70, 110);
   state.organisms.set(org.id, org);
   recordBirth(state, org);
+  return org;
+}
+
+export function introducePredator(state: WorldState, x: number, y: number): Organism {
+  const org = spawnPredator(state, x, y);
+  org.speciesId = state.species.createFounderSpecies(org, state.tick);
   logDivine(state, `🐺 God introduced a predator: ${org.name}.`);
   return org;
+}
+
+/** Spawns `count` predators scattered within `radius` of (x, y), all founding the same
+ * new species so they read as one coordinated pack in the Tree of Life rather than N
+ * unrelated lineages. Used by the "Predator Swarm" God Mode option, which arms this with
+ * count = ~20% of the current living population. */
+export function introducePredatorPack(state: WorldState, x: number, y: number, count: number, radius: number): Organism[] {
+  const pack: Organism[] = [];
+  let founderSpeciesId: number | null = null;
+  for (let i = 0; i < count; i++) {
+    const angle = state.rng.range(0, Math.PI * 2);
+    const dist = state.rng.range(0, radius);
+    const px = Math.max(0, Math.min(state.config.worldSize, x + Math.cos(angle) * dist));
+    const py = Math.max(0, Math.min(state.config.worldSize, y + Math.sin(angle) * dist));
+    const org = spawnPredator(state, px, py);
+    if (founderSpeciesId === null) founderSpeciesId = state.species.createFounderSpecies(org, state.tick);
+    org.speciesId = founderSpeciesId;
+    pack.push(org);
+  }
+  logDivine(state, `🐺 God unleashed a predator swarm: ${pack.length} hunters.`);
+  return pack;
 }
 
 export type EvolutionaryPressureGoal =

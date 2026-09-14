@@ -15,6 +15,7 @@ export type PendingGodAction =
   | { kind: 'terraform'; terrainType: TerrainType; radius: number }
   | { kind: 'placeCreature'; traits: Partial<Record<string, number>> }
   | { kind: 'introducePredator' }
+  | { kind: 'predatorPack'; radius: number }
   | { kind: 'teleportSelected' };
 
 export type SpeedSetting = 0 | 1 | 2 | 5 | 10 | 'max';

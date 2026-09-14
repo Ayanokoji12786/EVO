@@ -41,6 +41,11 @@ const EVOLUTION_PRESSURE: { id: EvolutionaryPressureGoal; icon: string; label: s
   { id: 'intelligence', icon: '🧠', label: 'FAVOR INTELLIGENCE' },
 ];
 
+const PREDATORS = [
+  ['one', '🐺', 'INTRODUCE ONE'],
+  ['swarm', '🐺🐺🐺', 'PREDATOR SWARM (20%)'],
+] as const;
+
 const LAWS = [
   ['plantGrowth', '🌱', 'BOOST PLANT GROWTH'],
   ['predation', '🐾', 'HARSHER PREDATION'],
@@ -68,7 +73,7 @@ export function GodPanel({ controller, anchor, initialLayer, onClose, onAction }
   };
 
   const choose = (id: Category) => {
-    if (id === 'weather' || id === 'destruction' || id === 'evolution' || id === 'laws') { setLayer(id); return; }
+    if (id === 'weather' || id === 'destruction' || id === 'evolution' || id === 'laws' || id === 'predators') { setLayer(id); return; }
     if (id === 'disease') {
       controller.god.createPlague(controller.world, { transmissionRate: 0.55, mortality: 0.32, incubationPeriod: 10, recoveryChance: 0.4, mutationRate: 0.02 });
       return finishInstant('🦠 A plague has been released into the population.');
@@ -76,10 +81,14 @@ export function GodPanel({ controller, anchor, initialLayer, onClose, onAction }
     const armed: Partial<Record<Category, PendingGodAction>> = {
       terraform: { kind: 'terraform', terrainType: 'fertile' as TerrainType, radius: 70 },
       life: { kind: 'placeCreature', traits: { size: 0.9, maxSpeed: 1.3, visionRadius: 90, aggression: 0.2 } },
-      predators: { kind: 'introducePredator' },
     };
     if (armed[id]) setPending(armed[id]);
     onClose();
+  };
+
+  const predators = (kind: (typeof PREDATORS)[number][0]) => {
+    if (kind === 'one') { setPending({ kind: 'introducePredator' }); return onClose(); }
+    if (kind === 'swarm') { setPending({ kind: 'predatorPack', radius: 160 }); return onClose(); }
   };
 
   const weather = (kind: (typeof WEATHER)[number][0]) => {
@@ -130,6 +139,7 @@ export function GodPanel({ controller, anchor, initialLayer, onClose, onAction }
     : layer === 'destruction' ? { title: null, items: DESTRUCTION.map(([id, icon, label]) => ({ id, icon, label })), onPick: (id: string) => destruction(id as (typeof DESTRUCTION)[number][0]) }
     : layer === 'evolution' ? { title: null, items: EVOLUTION_PRESSURE.map((e) => ({ id: e.id, icon: e.icon, label: e.label })), onPick: (id: string) => evolution(id as EvolutionaryPressureGoal) }
     : layer === 'laws' ? { title: null, items: LAWS.map(([id, icon, label]) => ({ id, icon, label })), onPick: (id: string) => laws(id as (typeof LAWS)[number][0]) }
+    : layer === 'predators' ? { title: null, items: PREDATORS.map(([id, icon, label]) => ({ id, icon, label })), onPick: (id: string) => predators(id as (typeof PREDATORS)[number][0]) }
     : null;
 
   return (

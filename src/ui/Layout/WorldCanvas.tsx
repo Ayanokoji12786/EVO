@@ -114,7 +114,7 @@ export function WorldCanvas({ controller, onMeteorImpact }: { controller: Simula
 function PowerCursor({ controller, point }: { controller: SimulationController; point: { x: number; y: number } }) {
   const action = useSimStore((s) => s.pendingGodAction);
   if (!action) return <div className="power-cursor-label observe-cursor" style={{ left: point.x + 14, top: point.y + 14 }}>⌖ OBSERVE</div>;
-  const labels: Record<string, string> = { meteor: '◎ IMPACT TARGET', terraform: '◯ TERRAIN BRUSH', placeCreature: '⌬ GENETIC INTERVENTION', mutate: '⌬ GENETIC INTERVENTION', introducePredator: '🐺 PREDATOR INTRODUCTION', lightning: '⚡ DIVINE STRIKE', flood: '🌊 FLOOD PLAIN', wildfire: '🔥 WILDFIRE', volcano: '🌋 VOLCANIC SEED' };
+  const labels: Record<string, string> = { meteor: '◎ IMPACT TARGET', terraform: '◯ TERRAIN BRUSH', placeCreature: '⌬ GENETIC INTERVENTION', mutate: '⌬ GENETIC INTERVENTION', introducePredator: '🐺 PREDATOR INTRODUCTION', predatorPack: '🐺 PREDATOR SWARM (~20% OF POPULATION)', lightning: '⚡ DIVINE STRIKE', flood: '🌊 FLOOD PLAIN', wildfire: '🔥 WILDFIRE', volcano: '🌋 VOLCANIC SEED' };
   const radius = 'radius' in action ? action.radius : action.kind === 'lightning' ? 16 : 38;
   const ringSize = Math.max(32, radius * controller.camera.zoom * 2);
   return <><div className={`power-cursor ${action.kind === 'meteor' ? 'meteor-cursor' : ''}`} style={{ left: point.x, top: point.y, width: ringSize, height: ringSize }} /> <div className="power-cursor-label" style={{ left: point.x + 18, top: point.y + 18 }}>{labels[action.kind] ?? '⌖ OBSERVE'}{action.kind === 'terraform' ? ` · ${Math.round(radius)} km` : ''}{action.kind === 'meteor' && <MeteorEstimate controller={controller} point={point} radius={radius} />}</div></>;
