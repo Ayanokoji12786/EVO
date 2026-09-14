@@ -63,12 +63,14 @@ export function GodPanel({ controller, anchor, onClose }: { controller: Simulati
 
   const entries = layer === 'weather' ? WEATHER.map(([id, icon, label]) => ({ id, icon, label })) : ROOT_ACTIONS;
   const radius = layer === 'weather' ? 144 : 178;
-  const safeX = Math.max(210, Math.min(window.innerWidth - 210, anchor.x));
-  const safeY = Math.max(210, Math.min(window.innerHeight - 210, anchor.y));
+  const menuScale = Math.min(1, (window.innerWidth - 24) / 460, (window.innerHeight - 24) / 460);
+  const margin = 230 * menuScale;
+  const safeX = Math.max(margin, Math.min(window.innerWidth - margin, anchor.x));
+  const safeY = Math.max(margin, Math.min(window.innerHeight - margin, anchor.y));
 
   return (
     <div className="god-radial-backdrop" onMouseDown={onClose}>
-      <div className="god-radial" style={{ left: safeX, top: safeY }} onMouseDown={(event) => event.stopPropagation()}>
+      <div className="god-radial" style={{ left: safeX, top: safeY, transform: `scale(${menuScale})` }} onMouseDown={(event) => event.stopPropagation()}>
         <div className="god-radial-center">
           <span>{layer === 'weather' ? '🌦' : '✦'}</span>
           <strong>{layer === 'weather' ? 'WEATHER' : 'DIVINE WILL'}</strong>
@@ -78,7 +80,7 @@ export function GodPanel({ controller, anchor, onClose }: { controller: Simulati
           const angle = -Math.PI / 2 + (Math.PI * 2 * index) / entries.length;
           const x = Math.cos(angle) * radius;
           const y = Math.sin(angle) * radius;
-          return <button key={item.id} className="god-radial-action" style={{ transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))` }} onMouseEnter={() => layer === null && item.id === 'weather' && setLayer('weather')} onClick={() => layer === 'weather' ? weather(item.id as (typeof WEATHER)[number][0]) : choose(item.id as Category)} title={'hint' in item ? item.hint : item.label}><span className="god-radial-icon">{item.icon}</span><span>{item.label}</span></button>;
+          return <button key={item.id} className="god-radial-action" style={{ transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))` }} onClick={() => layer === 'weather' ? weather(item.id as (typeof WEATHER)[number][0]) : choose(item.id as Category)} title={'hint' in item ? item.hint : item.label}><span className="god-radial-icon">{item.icon}</span><span>{item.label}</span></button>;
         })}
         <div className="god-radial-status">WORLD {seed || '7F3A'} · GENERATION {(stats?.generation ?? 0).toLocaleString()}</div>
       </div>

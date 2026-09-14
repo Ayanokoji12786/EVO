@@ -69,6 +69,15 @@ export class WorldRenderer3D {
     this.renderer.setSize(w, h, false);
   }
 
+  pickTerrain(camera: Camera, world: WorldState, sx: number, sy: number): [number, number] | null {
+    this.terrain.ensure(world.terrain);
+    this.terrain.mesh.updateMatrixWorld(true);
+    const ray = new THREE.Raycaster();
+    ray.setFromCamera(new THREE.Vector2(sx / camera.viewportW * 2 - 1, 1 - sy / camera.viewportH * 2), camera.three);
+    const hit = ray.intersectObject(this.terrain.mesh, false)[0];
+    return hit ? [hit.point.x, hit.point.z] : null;
+  }
+
   /** Forces the terrain mesh/texture to rebuild on the next draw — call after God Mode
    * terraforming edits the terrain grid directly. */
   invalidateTerrain() {

@@ -103,6 +103,7 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
       return;
     }
     setGodMode(true);
+    setRadialAnchor({ x: window.innerWidth / 2, y: window.innerHeight / 2 });
     setGodArrival(true);
     setSpeed(1);
     controller.zoom(0.88);

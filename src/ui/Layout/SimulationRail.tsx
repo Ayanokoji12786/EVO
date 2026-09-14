@@ -13,11 +13,11 @@ export function SimulationRail({ onOpenTree, onOpenTimeMachine, onOpenExperiment
   const clearInspector = useSimStore((s) => s.select);
 
   const armWeather = () => {
-    if (!godMode) onGodMode();
+    if (!godMode) useSimStore.getState().setGodMode(true);
     setPending({ kind: 'rainfall', radius: 90, intensity: 0.7, duration: 600 });
   };
   const armTerrain = () => {
-    if (!godMode) onGodMode();
+    if (!godMode) useSimStore.getState().setGodMode(true);
     setPending({ kind: 'terraform', radius: 90, terrainType: 'grass' });
   };
 

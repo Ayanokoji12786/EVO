@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 import type { SimulationController } from '../../state/simulationController';
-import { screenToWorld } from '../../rendering/camera';
 import { useSimStore } from '../../state/simStore';
 
 type Impact = { before: number; after: number; eliminated: number; percent: number; extinctSpecies: number; survivors: number };
@@ -23,9 +22,19 @@ export function WorldCanvas({ controller, onGodInvoke, onMeteorImpact }: { contr
     const action = useSimStore.getState().pendingGodAction;
     if (!action || action.kind !== 'rainfall') return;
     const rect = event.currentTarget.getBoundingClientRect();
-    const [x, y] = screenToWorld(controller.camera, event.clientX - rect.left, event.clientY - rect.top);
+    const target = controller.targetTerrain(event.clientX - rect.left, event.clientY - rect.top);
+    if (!target) return;
+    const [x, y] = target;
     controller.applyPendingGodAction(x, y);
   };
+
+  useEffect(() => {
+    const cancel = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') useSimStore.getState().setPendingGodAction(null);
+    };
+    window.addEventListener('keydown', cancel);
+    return () => window.removeEventListener('keydown', cancel);
+  }, []);
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -43,6 +52,7 @@ export function WorldCanvas({ controller, onGodInvoke, onMeteorImpact }: { contr
         ref={canvasRef}
         style={{ width: '100%', height: '100%', display: 'block', cursor: rainEquipped ? 'none' : isDragging ? 'grabbing' : 'grab' }}
         onMouseDown={(e) => {
+          if (e.button !== 0) return;
           if (rainEquipped && e.button === 0) { paintRain(e); lastRainStroke.current = performance.now(); return; }
           dragState.current = { dragging: true, moved: false, lastX: e.clientX, lastY: e.clientY };
           setIsDragging(true);
@@ -67,6 +77,7 @@ export function WorldCanvas({ controller, onGodInvoke, onMeteorImpact }: { contr
           dragState.current.lastY = e.clientY;
         }}
         onMouseUp={(e) => {
+          if (e.button !== 0) return;
           const wasDrag = dragState.current.moved;
           dragState.current.dragging = false;
           setIsDragging(false);
@@ -78,7 +89,9 @@ export function WorldCanvas({ controller, onGodInvoke, onMeteorImpact }: { contr
           const sx = e.clientX - rect.left;
           const sy = e.clientY - rect.top;
           if (useSimStore.getState().pendingGodAction) {
-            const [wx, wy] = screenToWorld(controller.camera, sx, sy);
+            const target = controller.targetTerrain(sx, sy);
+            if (!target) return;
+            const [wx, wy] = target;
             const impact = controller.applyPendingGodAction(wx, wy);
             if (impact) onMeteorImpact?.(impact);
             return;
@@ -113,7 +126,9 @@ function PowerCursor({ controller, point }: { controller: SimulationController; 
 }
 
 function MeteorEstimate({ controller, point, radius }: { controller: SimulationController; point: { x: number; y: number }; radius: number }) {
-  const [wx, wy] = screenToWorld(controller.camera, point.x, point.y);
+  const target = controller.targetTerrain(point.x, point.y);
+  if (!target) return <small>AIM AT THE WORLD</small>;
+  const [wx, wy] = target;
   const living = [...controller.world.organisms.values()].filter((org) => org.alive);
   const exposed = living.filter((org) => Math.hypot(org.x - wx, org.y - wy) <= radius).length;
   const expected = living.length ? (exposed / living.length) * 58 : 0;

@@ -190,10 +190,15 @@ export class SimulationController {
     useSimStore.getState().setFollow(orgId);
   }
 
+  targetTerrain(sx: number, sy: number): [number, number] | null {
+    syncCamera(this.camera);
+    return this.renderer3d?.pickTerrain(this.camera, this.world, sx, sy) ?? null;
+  }
+
   applyPendingGodAction(worldX: number, worldY: number): { before: number; after: number; eliminated: number; percent: number; extinctSpecies: number; survivors: number } | null {
     const store = useSimStore.getState();
     const action = store.pendingGodAction;
-    if (!action) return null;
+    if (!store.godMode || !action || !Number.isFinite(worldX) || !Number.isFinite(worldY) || worldX < 0 || worldY < 0 || worldX > this.world.config.worldSize || worldY > this.world.config.worldSize) return null;
     let impact: { before: number; after: number; eliminated: number; percent: number; extinctSpecies: number; survivors: number } | null = null;
     switch (action.kind) {
       case 'rainfall':

@@ -125,7 +125,7 @@ export const useSimStore = create<SimStoreState>((set) => ({
   select: (selectedId) => set({ selectedId }),
   setFollow: (followId) => set({ followId }),
   setInspector: (inspector) => set({ inspector }),
-  setGodMode: (godMode) => set({ godMode }),
+  setGodMode: (godMode) => set((state) => ({ godMode, pendingGodAction: godMode ? state.pendingGodAction : null })),
   setOverlay: (key, value) => set((s) => ({ overlays: { ...s.overlays, [key]: value } })),
   setDivineCounters: (divineInterventions, naturalGenerations, interferedGenerations) =>
     set({ divineInterventions, naturalGenerations, interferedGenerations }),
