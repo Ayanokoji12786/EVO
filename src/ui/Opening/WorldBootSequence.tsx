@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties }
 import type { HistoryEvent, WorldConfig } from '../../simulation/types';
 import orbitalHero from '../../assets/evo-orbital-hero.png';
 import { createResumeFrames, flavorLine, hasGodHint, type WorldBootMode } from './worldBoot';
+import { GenesisSequence } from './GenesisSequence';
 
 type WorldBootSequenceProps = {
   mode: WorldBootMode;
@@ -58,10 +59,10 @@ const BLOOM_POINTS = [
 export function WorldBootSequence({ mode, seed, generation, events, climate, foodAbundance, onComplete, onEcologyReveal }: WorldBootSequenceProps) {
   return mode === 'resume'
     ? <ResumeWorldSequence generation={generation} events={events} onComplete={onComplete} />
-    : <FirstCellSequence seed={seed} climate={climate} foodAbundance={foodAbundance} onComplete={onComplete} onEcologyReveal={onEcologyReveal} />;
+    : <GenesisSequence seed={seed} climate={climate} foodAbundance={foodAbundance} onComplete={onComplete} onEcologyReveal={onEcologyReveal} />;
 }
 
-function FirstCellSequence({
+export function FirstCellSequence({
   seed, climate, foodAbundance, onComplete, onEcologyReveal,
 }: Pick<WorldBootSequenceProps, 'seed' | 'climate' | 'foodAbundance' | 'onComplete' | 'onEcologyReveal'>) {
   const [percent, setPercent] = useState(0);
