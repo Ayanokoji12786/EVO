@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { createExperimentPair, runTicks } from '../src/experiments/experiment';
+import { compareResults, createExperimentPair, runTicks } from '../src/experiments/experiment';
 import type { WorldConfig } from '../src/simulation/types';
 
 function baseConfig(): WorldConfig {
@@ -15,6 +15,17 @@ function baseConfig(): WorldConfig {
 }
 
 describe('Experiment Mode / Split Timeline', () => {
+  it('compares the exact live endpoints rather than older full snapshots', () => {
+    const pair = createExperimentPair(baseConfig(), 'endpoint fidelity', {path:'climate.rainfall',controlValue:1,experimentValue:1.8});
+    runTicks(pair.control,25);
+    runTicks(pair.experimentWorld,40);
+    for (const organism of pair.control.organisms.values()) organism.genome.traits.size = 1.25;
+    const result = compareResults(pair);
+    expect(result.control.avg.size).toBeCloseTo(1.25);
+    expect(result.control.tick).toBe(pair.control.tick);
+    expect(result.experimentWorld.tick).toBe(pair.experimentWorld.tick);
+    expect(result.ticksRun).toBe(Math.max(pair.control.tick,pair.experimentWorld.tick));
+  });
   it('control and experiment worlds each keep their own config (no shared-reference cross-talk)', () => {
     const pair = createExperimentPair(baseConfig(), 'does food abundance matter?', {
       path: 'config.foodAbundance',

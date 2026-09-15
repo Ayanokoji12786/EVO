@@ -4,6 +4,8 @@ import { Overlay } from '../TimeMachine/TimeMachine';
 import { createExperimentPair, compareResults, exportResultAsCSV, exportResultAsJSON, type ExperimentVariable } from '../../experiments/experiment';
 import { useSimStore } from '../../state/simStore';
 import { stepWorld } from '../../simulation/engine';
+import worldAtlas from '../../assets/world-atlas.png';
+import './ExperimentPanel.css';
 
 const VARIABLES: { path: ExperimentVariable['path']; label: string; control: number; experiment: number }[] = [
   { path: 'config.foodAbundance', label: 'Food abundance (control 1.0 vs experiment 0.5)', control: 1, experiment: 0.5 },
@@ -23,6 +25,8 @@ export function ExperimentPanel({ controller, onClose }: { controller: Simulatio
   const setResult = useSimStore((s) => s.setExperimentResult);
   const [progress, setProgress] = useState(0);
   const cancelled = useRef(false);
+  const activeRun = useRef(false);
+  const [error,setError] = useState<string | null>(null);
 
   useEffect(() => () => {
     cancelled.current = true;
@@ -30,9 +34,14 @@ export function ExperimentPanel({ controller, onClose }: { controller: Simulatio
   }, [setRunning]);
 
   async function run() {
+    if (activeRun.current) return;
+    activeRun.current = true;
     cancelled.current = false;
+    setError(null);
+    setProgress(0);
     setRunning(true);
     setResult(null);
+    try {
     const v = VARIABLES[variableIdx];
     const pair = createExperimentPair(
       controller.world.config,
@@ -54,20 +63,27 @@ export function ExperimentPanel({ controller, onClose }: { controller: Simulatio
     }
     if (cancelled.current) return;
     setResult(compareResults(pair));
-    setRunning(false);
+    } catch { if (!cancelled.current) setError('The experiment could not finish. Please try a shorter run.'); }
+    finally { activeRun.current=false; setRunning(false); }
   }
 
+  const variable = result?.variable ?? { path:VARIABLES[variableIdx].path,controlValue:VARIABLES[variableIdx].control,experimentValue:VARIABLES[variableIdx].experiment };
+  const variableName = variable.path.split('.').at(-1)!.replace(/([A-Z])/g,' $1');
+
   return (
-    <Overlay title="🧪 Experiment Mode" onClose={onClose}>
-      <div style={{ display: 'flex', gap: 16, padding: 16, flex: 1, overflow: 'hidden' }}>
-        <div className="glass" style={{ width: 340, padding: 16, overflowY: 'auto' }}>
+    <Overlay title="MULTIVERSE" onClose={onClose}>
+      <p className="reference-subtitle">SAME BEGINNING. DIFFERENT POSSIBILITIES.</p>
+      <div className="experiment-content scroll-thin">
+        <div className="experiment-worlds reference-card"><WorldPreview title="WORLD A" label={`${variableName} · ${variable.controlValue}`} population={result?.control.population} generation={result?.control.generation} tick={result?.control.tick} /><span className="experiment-versus">VS</span><WorldPreview title="WORLD B" label={`${variableName} · ${variable.experimentValue}`} alternate population={result?.experimentWorld.population} generation={result?.experimentWorld.generation} tick={result?.experimentWorld.tick} /></div>
+        <div className="experiment-workspace">
+        <div className="reference-card experiment-controls">
           <label className="field">
             Question
-            <input type="text" value={question} onChange={(e) => setQuestion(e.target.value)} />
+            <input type="text" disabled={running} value={question} onChange={(e) => setQuestion(e.target.value)} />
           </label>
           <label className="field">
             Variable to change
-            <select value={variableIdx} onChange={(e) => setVariableIdx(Number(e.target.value))}>
+            <select disabled={running} value={variableIdx} onChange={(e) => setVariableIdx(Number(e.target.value))}>
               {VARIABLES.map((v, i) => (
                 <option key={v.path} value={i}>
                   {v.label}
@@ -77,18 +93,20 @@ export function ExperimentPanel({ controller, onClose }: { controller: Simulatio
           </label>
           <label className="field">
             Ticks to run <span className="value">{ticks}</span>
-            <input type="range" min={500} max={20000} step={500} value={ticks} onChange={(e) => setTicks(Number(e.target.value))} />
+            <input type="range" disabled={running} min={500} max={20000} step={500} value={ticks} onChange={(e) => setTicks(Number(e.target.value))} />
           </label>
           <div style={{ fontSize: 11, color: 'var(--text-dim)', marginBottom: 12 }}>
             Both universes start from the exact same seed and population. Only the selected variable differs.
           </div>
-          <button className="btn primary" style={{ width: '100%' }} disabled={running} onClick={run}>
-            {running ? `Running… ${Math.round(progress * 100)}%` : 'SPLIT TIMELINE & RUN'}
+          <button className="reference-primary" style={{ width: '100%' }} disabled={running} onClick={run}>
+            {running ? `COMPARING… ${Math.round(progress * 100)}%` : 'COMPARE EVOLUTION →'}
           </button>
+          {running && <progress max={1} value={progress} />}
+          {error && <p role="alert">{error}</p>}
         </div>
 
-        <div className="glass scroll-thin" style={{ flex: 1, padding: 16, overflowY: 'auto' }}>
-          {!result && <div style={{ color: 'var(--text-dim)' }}>Run an experiment to see side-by-side results here.</div>}
+        <div className="reference-card experiment-results">
+          {!result && <div className="experiment-result-empty"><small>CONTROLLED EXPERIMENT</small><h3>One change can rewrite everything.</h3><p>Choose an environmental or genetic factor, then run both worlds to discover what diverges.</p></div>}
           {result && (
             <>
               <h3 style={{ marginTop: 0 }}>{result.question}</h3>
@@ -121,7 +139,7 @@ export function ExperimentPanel({ controller, onClose }: { controller: Simulatio
                     .sort((a, b) => Math.abs(b.deltaPct) - Math.abs(a.deltaPct))
                     .map((r) => (
                       <tr key={r.trait} style={{ borderTop: '1px solid var(--border)' }}>
-                        <td style={{ padding: '4px 0' }}>{r.trait}</td>
+                        <td style={{ padding: '8px 0' }}>{r.trait.replace(/([A-Z])/g,' $1').replace(/^./,(letter)=>letter.toUpperCase())}</td>
                         <td>{r.control.toFixed(3)}</td>
                         <td>{r.experiment.toFixed(3)}</td>
                         <td style={{ color: r.deltaPct >= 0 ? 'var(--accent)' : 'var(--danger)' }}>
@@ -143,10 +161,13 @@ export function ExperimentPanel({ controller, onClose }: { controller: Simulatio
             </>
           )}
         </div>
+        </div>
       </div>
     </Overlay>
   );
 }
+
+function WorldPreview({title,label,alternate,population,generation,tick}:{title:string;label:string;alternate?:boolean;population?:number;generation?:number;tick?:number}) { return <div className={`experiment-world ${alternate?'is-alternate':''}`}><small>{title}</small><p>{label}</p><div className="experiment-globe" style={{backgroundImage:`url(${worldAtlas})`}} /><em>Illustrative world</em>{population !== undefined && <div className="experiment-world-numbers"><span>{population.toLocaleString()} organisms</span><span>{generation} generations · {tick?.toLocaleString()} ticks</span></div>}</div>; }
 
 function downloadText(content: string, filename: string) {
   const blob = new Blob([content], { type: 'text/plain' });

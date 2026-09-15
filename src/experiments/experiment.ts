@@ -2,7 +2,7 @@ import { createWorld, stepWorld } from '../simulation/engine';
 import type { WorldConfig } from '../simulation/types';
 import type { WorldState } from '../simulation/worldState';
 import { TRAIT_SPECS } from '../genetics/traits';
-import { traitPercentChange } from '../statistics/stats';
+import { computeStats, traitPercentChange } from '../statistics/stats';
 
 export interface ExperimentVariable {
   path: 'config.foodAbundance' | 'config.mutationRate' | 'climate.rainfall' | 'climate.baseTemperature' | 'laws.predationEffectiveness';
@@ -60,16 +60,16 @@ export interface ExperimentResult {
   question: string;
   variable: ExperimentVariable;
   ticksRun: number;
-  control: { population: number; speciesCount: number; generation: number; avg: Record<string, number> };
-  experimentWorld: { population: number; speciesCount: number; generation: number; avg: Record<string, number> };
+  control: { population: number; speciesCount: number; generation: number; avg: Record<string, number>; tick?:number };
+  experimentWorld: { population: number; speciesCount: number; generation: number; avg: Record<string, number>; tick?:number };
   comparison: ExperimentComparisonRow[];
 }
 
 export function compareResults(pair: ExperimentPair): ExperimentResult {
   const c = pair.control;
   const e = pair.experimentWorld;
-  const cStats = c.history.latest()?.stats;
-  const eStats = e.history.latest()?.stats;
+  const cStats = computeStats([...c.organisms.values()].filter((organism) => organism.alive),c.tick,c.births,c.deaths,c.food.items.size,c.species.living().length);
+  const eStats = computeStats([...e.organisms.values()].filter((organism) => organism.alive),e.tick,e.births,e.deaths,e.food.items.size,e.species.living().length);
   const cAvg = cStats?.avg ?? {};
   const eAvg = eStats?.avg ?? {};
 
@@ -83,9 +83,9 @@ export function compareResults(pair: ExperimentPair): ExperimentResult {
   return {
     question: pair.question,
     variable: pair.variable,
-    ticksRun: c.tick,
-    control: { population: c.organisms.size, speciesCount: c.species.living().length, generation: c.maxGenerationSeen, avg: cAvg },
-    experimentWorld: { population: e.organisms.size, speciesCount: e.species.living().length, generation: e.maxGenerationSeen, avg: eAvg },
+    ticksRun: Math.max(c.tick,e.tick),
+    control: { population: cStats.population, speciesCount: cStats.speciesCount, generation: c.maxGenerationSeen, avg: cAvg, tick:c.tick },
+    experimentWorld: { population: eStats.population, speciesCount: eStats.speciesCount, generation: e.maxGenerationSeen, avg: eAvg, tick:e.tick },
     comparison,
   };
 }

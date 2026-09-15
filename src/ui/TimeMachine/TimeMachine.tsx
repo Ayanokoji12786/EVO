@@ -42,5 +42,5 @@ export function TimeMachine({ controller, onClose }: { controller: SimulationCon
 }
 
 function SpecimenRecord({title,generation,tick,population}:{title:string;generation:number;tick:number;population:number}) { return <div className="comparison-specimen"><small>{title}</small><h3>Generation {generation.toLocaleString()}</h3><img src={specimenPortrait} alt="Concept specimen portrait" /><p>Tick {tick.toLocaleString()}</p><b>{population.toLocaleString()} organisms</b></div>; }
-export function traitLabel(key:string) { return key.replace(/([A-Z])/g,' $1').replace(/^./,(letter) => letter.toUpperCase()); }
+function traitLabel(key:string) { return key.replace(/([A-Z])/g,' $1').replace(/^./,(letter) => letter.toUpperCase()); }
 export function Overlay({title,onClose,children}:{title:string;onClose:()=>void;children:ReactNode}) { return <section className="reference-overlay" aria-label={title}><header className="reference-overlay-header"><h2>{title}</h2><button aria-label={`Close ${title}`} onClick={onClose}>×</button></header>{children}</section>; }
