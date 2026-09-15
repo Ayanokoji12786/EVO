@@ -59,6 +59,15 @@ export const TRAIT_SPECS: TraitSpec[] = [
     description:
       "A complex trait that only pays off past a threshold (~0.6): partial development is pure upkeep cost with no benefit, so it can only accumulate via drift or linkage until a lineage crosses the threshold and gains a real evasion/movement-efficiency payoff. Models how complex features evolve through non-adaptive 'stepping stones' rather than direct selection the whole way (Lenski et al. 2003). Stays at 0 unless God Mode unlocks 'flight'.",
   },
+  {
+    key: 'seasonalTiming',
+    min: 0,
+    max: 1,
+    initMin: 0,
+    initMax: 1,
+    description:
+      'Preferred phase of the year for reproduction (0/1 = winter, 0.5 = summer peak — Franks, Sim & Weis 2007, "Rapid evolution of flowering time"). Attempting to reproduce far from this phase risks the attempt failing outright; nothing forces which phase wins, it is whatever the world\'s actual food/climate cycle rewards.',
+  },
 ];
 
 export const TRAIT_KEYS = TRAIT_SPECS.map((t) => t.key);

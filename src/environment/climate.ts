@@ -14,6 +14,10 @@ export function createClimate(config: WorldConfig): ClimateState {
     windX: 0,
     windY: 0,
     disasterCooldown: 0,
+    tempChangeRate: 0,
+    rainfallChangeRate: 0,
+    prevBaseTemperature: base,
+    prevRainfall: 1,
   };
 }
 
@@ -37,6 +41,19 @@ export function stepClimate(climate: ClimateState, dt: number) {
   climate.season = (climate.season + dt) % (climate.seasonLength * 4);
   climate.dayNightProgress = ((climate.dayNightProgress * climate.dayLength + dt) % climate.dayLength) / climate.dayLength;
   if (climate.disasterCooldown > 0) climate.disasterCooldown = Math.max(0, climate.disasterCooldown - dt);
+
+  // Rate-of-change tracking (Lindsey et al. 2013, "Evolutionary rescue from extinction is
+  // contingent on a lower rate of environmental change"): an EMA of the actual per-tick
+  // change in baseTemperature/rainfall. A God Mode disaster changes these in one tick, so
+  // it spikes this rate hard; natural seasonal drift doesn't touch these fields at all
+  // (it's applied downstream in localTemperature/food growth), so it never triggers this.
+  const emaRate = Math.min(1, dt * 0.15);
+  const tempDelta = Math.abs(climate.baseTemperature - climate.prevBaseTemperature) / Math.max(1, dt);
+  const rainDelta = Math.abs(climate.rainfall - climate.prevRainfall) / Math.max(1, dt);
+  climate.tempChangeRate += (tempDelta - climate.tempChangeRate) * emaRate;
+  climate.rainfallChangeRate += (rainDelta - climate.rainfallChangeRate) * emaRate;
+  climate.prevBaseTemperature = climate.baseTemperature;
+  climate.prevRainfall = climate.rainfall;
 }
 
 /** Local normalized temperature (-1..1) at a world point, combining global, seasonal, terrain and latitude effects. */

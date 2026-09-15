@@ -49,11 +49,12 @@ depending on which environment builds it, so both deployments work without edits
   currently selected in the Creature Inspector — full per-population 3D detail isn't
   tractable at thousands of organisms, so the close-up view carries the visual detail
   instead.
-- **Genetics**: 26 trade-off traits (size, speed, acceleration, vision radius & field of
+- **Genetics**: 27 trade-off traits (size, speed, acceleration, vision radius & field of
   view, metabolism, energy storage, lifespan, reproduction threshold/cost, mutation rate,
   diet, aggression, fear response, exploration tendency, litter size, camouflage, color,
   temperature tolerance & plasticity, dispersal tendency, an unlockable "wing
-  development" complex trait, ...) plus a small evolvable feed-forward neural network
+  development" complex trait, seasonal reproduction timing, ...) plus a small evolvable
+  feed-forward neural network
   (10 inputs → 8 hidden → 5 outputs) that turns senses (nearest food/organism bearing &
   distance, energy, age, temperature) into actions (steer, throttle, eat, reproduce,
   fight-or-flee). A NEAT-inspired (Stanley & Miikkulainen 2002) structural mutation can
@@ -198,8 +199,22 @@ claims of full fidelity to them:
 10. The ecological-network-fragility literature (e.g. Sanders et al., *Environmental
    Change Makes Robust Ecological Networks Fragile*) — loosely motivates the
    carcass/scavenging trophic link.
+11. Lindsey, Fields, Nocedal, Brooks & Kussell (2013), *Evolutionary rescue from
+   extinction is contingent on a lower rate of environmental change* (Nature) —
+   motivates tracking an EMA of the world's actual per-tick temperature/rainfall change
+   and charging energy upkeep proportional to that *rate* (buffered by `plasticity`), so
+   an instant God Mode shock costs far more than the same net change drifting in
+   naturally over many generations.
+12. Franks, Sim & Weis (2007), *Rapid evolution of flowering time by an annual plant in
+   response to a climate fluctuation* (PNAS) — motivates the heritable `seasonalTiming`
+   gene: reproducing far from an organism's preferred phase of the year risks outright
+   failure, with no mechanic dictating which phase the population settles on.
 
-The in-app About panel spells out exactly what is and isn't modeled from each.
+The in-app About panel spells out exactly what is and isn't modeled from each, including
+three related mechanics from the same reading list that are *not* implemented: a
+distinct environmental-memory store beyond the rate-shock EMA (Abreu, Mathur & Petrov,
+2024), priming from a lineage's historical stress exposure (Bell & Gonzalez, 2012), and
+explicit antagonistic-pleiotropy trade-off matrices between traits (Buskirk et al., 2020).
 
 ## Testing
 

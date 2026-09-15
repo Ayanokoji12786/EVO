@@ -7,6 +7,7 @@ import { createOrganism } from '../src/organisms/organism';
 import { createWorld, stepWorld } from '../src/simulation/engine';
 import { killOrganism } from '../src/simulation/genealogy';
 import { computeStats } from '../src/statistics/stats';
+import { createClimate, stepClimate } from '../src/environment/climate';
 import type { WorldConfig } from '../src/simulation/types';
 
 function baseConfig(overrides: Partial<WorldConfig> = {}): WorldConfig {
@@ -124,6 +125,72 @@ describe('trophic composition stats', () => {
     const stats = computeStats(organisms, 0, 0, 0, 0, 1);
     for (const value of Object.values(stats.stdDev)) {
       expect(value).toBeGreaterThanOrEqual(0);
+    }
+  });
+});
+
+describe('rate of environmental change (Lindsey et al. 2013)', () => {
+  it('an instant climate jump spikes tempChangeRate, which then decays back toward 0', () => {
+    const climate = createClimate(baseConfig());
+    for (let i = 0; i < 20; i++) stepClimate(climate, 1); // let the EMA settle at 0 with no change
+    expect(climate.tempChangeRate).toBeCloseTo(0, 5);
+
+    climate.baseTemperature += 0.5; // a one-tick God Mode-style jump
+    stepClimate(climate, 1);
+    const spiked = climate.tempChangeRate;
+    expect(spiked).toBeGreaterThan(0.05);
+
+    for (let i = 0; i < 60; i++) stepClimate(climate, 1); // no further change — EMA should relax
+    expect(climate.tempChangeRate).toBeLessThan(spiked);
+    expect(climate.tempChangeRate).toBeCloseTo(0, 2);
+  });
+
+  it('gradual drift of the same total magnitude never spikes the rate the way an instant jump does', () => {
+    const climate = createClimate(baseConfig());
+    for (let i = 0; i < 50; i++) {
+      climate.baseTemperature += 0.01; // same eventual +0.5 total, spread over 50 ticks
+      stepClimate(climate, 1);
+    }
+    expect(climate.tempChangeRate).toBeLessThan(0.05);
+  });
+
+  it('climate shock energy cost (same formula as engine.ts) is buffered by plasticity and zero when the world is stable', () => {
+    const shockCost = (tempChangeRate: number, rainfallChangeRate: number, plasticity: number) => {
+      const shockBuffer = 1 - plasticity * 0.7;
+      return (tempChangeRate * 9 + rainfallChangeRate * 3) * shockBuffer;
+    };
+    expect(shockCost(0, 0, 0)).toBe(0);
+    expect(shockCost(0, 0, 1)).toBe(0);
+    const lowPlasticityCost = shockCost(0.2, 0.1, 0);
+    const highPlasticityCost = shockCost(0.2, 0.1, 1);
+    expect(highPlasticityCost).toBeLessThan(lowPlasticityCost);
+    expect(highPlasticityCost).toBeCloseTo(lowPlasticityCost * 0.3, 10); // plasticity 1 -> 30% of full shock
+  });
+});
+
+describe('seasonal timing (Franks, Sim & Weis 2007)', () => {
+  // Same circular-distance formula as engine.ts's reproduction gate: 0 = perfectly
+  // timed, 0.5 = maximally misaligned (opposite side of the year).
+  const circularGap = (seasonNow: number, seasonalTiming: number) => {
+    const phaseGap = Math.abs(seasonNow - seasonalTiming);
+    return Math.min(phaseGap, 1 - phaseGap);
+  };
+
+  it('is 0 when perfectly aligned and 0.5 at the opposite phase of the year', () => {
+    expect(circularGap(0.3, 0.3)).toBe(0);
+    expect(circularGap(0, 0.5)).toBe(0.5);
+  });
+
+  it('wraps around the year boundary instead of treating it as maximally distant', () => {
+    // 0.95 and 0.05 are only 0.1 apart on a circular year, not 0.9 apart.
+    expect(circularGap(0.95, 0.05)).toBeCloseTo(0.1, 10);
+  });
+
+  it('never exceeds 0.5, the true maximum circular distance', () => {
+    for (let seasonNow = 0; seasonNow <= 1; seasonNow += 0.05) {
+      for (let timing = 0; timing <= 1; timing += 0.05) {
+        expect(circularGap(seasonNow, timing)).toBeLessThanOrEqual(0.5 + 1e-9);
+      }
     }
   });
 });

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import type { HistoryEvent } from '../../simulation/types';
+import orbitalHero from '../../assets/evo-orbital-hero.png';
 import { createResumeFrames, hasGodHint, type WorldBootMode } from './worldBoot';
 
 type WorldBootSequenceProps = {
@@ -67,6 +68,8 @@ function FirstCellSequence({ seed, onComplete }: Pick<WorldBootSequenceProps, 's
 
   return (
     <section className={className} aria-label="Creating a new world" role="status">
+      <div className="world-boot-backdrop" style={{ backgroundImage: `url(${orbitalHero})` }} aria-hidden="true" />
+      <div className="world-boot-grain" aria-hidden="true" />
       <div className="world-boot-bokeh" aria-hidden="true">
         <i className="bokeh-a" /><i className="bokeh-b" /><i className="bokeh-c" /><i className="bokeh-d" /><i className="bokeh-e" />
       </div>

@@ -123,7 +123,7 @@ export function TimeMachine({ controller, onClose }: { controller: SimulationCon
 
 export function Overlay({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   return (
-    <div style={{ position: 'absolute', left: 0, right: 0, top: 64, bottom: 0, paddingLeft: 88, background: 'rgba(4,6,10,0.9)', zIndex: 15, display: 'flex', flexDirection: 'column' }}>
+    <div style={{ position: 'absolute', left: 0, right: 0, top: 64, bottom: 0, paddingLeft: 88, paddingBottom: 108, background: 'rgba(4,6,10,0.9)', zIndex: 15, display: 'flex', flexDirection: 'column' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 20px' }}>
         <h2 style={{ margin: 0, fontSize: 16 }}>{title}</h2>
         <button className="btn" onClick={onClose}>

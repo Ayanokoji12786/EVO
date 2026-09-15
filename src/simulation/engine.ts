@@ -200,6 +200,17 @@ export function stepWorld(state: WorldState, dt: number) {
     cost += ENERGY.tempStressFactor * tempDiff * tempDiff * dt;
     cost += (t.tempToleranceRange - 0.15) * 0.01 * dt; // wide tolerance has a small baseline upkeep
     cost += t.plasticity * 0.004 * dt; // maintaining acclimation machinery has a small baseline cost
+
+    // Rate-of-change shock (Lindsey et al. 2013): a sudden climate jump costs far more than
+    // the same total change spread across many ticks — plasticity, the same gene that drives
+    // how fast acclimation above tracks conditions, also buffers this shock. A God Mode
+    // disaster (Ice Age/Heat Wave/Dark Age/Drought) is an instant one-tick change, so it
+    // spikes state.climate.*ChangeRate hard for a window of several ticks; ordinary seasonal
+    // cycling never touches baseTemperature/rainfall directly, so it never triggers this.
+    const shockBuffer = 1 - t.plasticity * 0.7; // plasticity 0 -> full shock, near 1 -> 30% of it
+    const climateShock = (state.climate.tempChangeRate * 9 + state.climate.rainfallChangeRate * 3) * shockBuffer;
+    cost += climateShock * dt;
+
     cost += crowding * 0.4 * metabolism * dt; // density-dependent stress once past carrying capacity
 
     org.energy -= cost;
@@ -250,18 +261,33 @@ export function stepWorld(state: WorldState, dt: number) {
     // Reproduction — gated by the hard population ceiling above; everything else about
     // who gets to reproduce (energy threshold, maturity, the decision itself) is untouched.
     if (decision.wantsToReproduce && org.alive && !atHardCeiling) {
-      const kids = reproduceAsexual(org, state.rng, state.mutationSettings, state.tick, () => allocateOrganismId(state), state.unlockedGenes);
-      for (const kid of kids) {
-        kid.speciesId = state.species.classifyNewborn(kid, org.speciesId, state.tick);
-        newborns.push(kid);
-      }
-      state.births += kids.length;
-      state.totalBirths += kids.length;
-      if (org.generation + 1 > state.maxGenerationSeen) {
-        state.maxGenerationSeen = org.generation + 1;
-        if (state.interferedThisGeneration) state.interferedGenerations++;
-        else state.naturalGenerations++;
-        state.interferedThisGeneration = false;
+      // Seasonal timing (Franks, Sim & Weis 2007, "Rapid evolution of flowering time"):
+      // reproducing far from the organism's own heritable preferred phase risks the
+      // attempt failing outright rather than just costing more — a real chance of losing
+      // the investment, which is what actually creates selection pressure on WHEN to
+      // reproduce. Nothing here decides which phase wins; that depends entirely on this
+      // world's own food/climate cycle.
+      const seasonNow = seasonalFactor(state.climate);
+      const phaseGap = Math.abs(seasonNow - t.seasonalTiming);
+      const circularGap = Math.min(phaseGap, 1 - phaseGap); // 0 = perfectly timed, 0.5 = opposite
+      const missedTiming = state.rng.bool(circularGap); // up to 50% fail chance at worst alignment
+      if (missedTiming) {
+        org.energy = Math.max(0, org.energy - t.reproductionCost * org.maxEnergy * 0.3);
+        org.reproductionCooldown = 5 + t.lifespan * 0.02;
+      } else {
+        const kids = reproduceAsexual(org, state.rng, state.mutationSettings, state.tick, () => allocateOrganismId(state), state.unlockedGenes);
+        for (const kid of kids) {
+          kid.speciesId = state.species.classifyNewborn(kid, org.speciesId, state.tick);
+          newborns.push(kid);
+        }
+        state.births += kids.length;
+        state.totalBirths += kids.length;
+        if (org.generation + 1 > state.maxGenerationSeen) {
+          state.maxGenerationSeen = org.generation + 1;
+          if (state.interferedThisGeneration) state.interferedGenerations++;
+          else state.naturalGenerations++;
+          state.interferedThisGeneration = false;
+        }
       }
     }
 

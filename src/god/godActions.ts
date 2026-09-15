@@ -125,8 +125,13 @@ export function triggerLightning(state: WorldState, x: number, y: number) {
 }
 
 export function triggerDarkAge(state: WorldState) {
-  state.climate.rainfall *= 0.4;
-  logDivine(state, `🌑 God dimmed the sun (Dark Age).`);
+  // A dimmed sun means less plant growth AND a colder world, not just less rain — the old
+  // version only touched rainfall, which barely registered. Both changes land in the same
+  // tick, so they also drive a real rate-of-change "shock" (see stepClimate/engine.ts) —
+  // this is now a genuinely dangerous event for organisms with low phenotypic plasticity.
+  state.climate.rainfall = Math.max(0.05, state.climate.rainfall * 0.35);
+  state.climate.baseTemperature = Math.max(-1, state.climate.baseTemperature - 0.45);
+  logDivine(state, `🌑 God dimmed the sun (Dark Age) — colder, and plant growth collapses.`);
 }
 
 // --- Terraforming ---

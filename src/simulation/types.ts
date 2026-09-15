@@ -80,6 +80,15 @@ export interface ClimateState {
   windX: number;
   windY: number;
   disasterCooldown: number;
+  // Rate-of-change tracking (Lindsey et al. 2013): survival depends on how FAST baseTemperature
+  // / rainfall change, not only their final value — an abrupt God Mode disaster (a same-tick
+  // jump) is measurably more costly than the same total drift spread across many ticks. These
+  // are EMAs of the per-tick delta, updated in stepClimate; prev* are the previous tick's raw
+  // values used only to compute that delta.
+  tempChangeRate: number;
+  rainfallChangeRate: number;
+  prevBaseTemperature: number;
+  prevRainfall: number;
 }
 
 export interface DivineLaws {

@@ -97,6 +97,26 @@ export function About({ onClose }: { onClose: () => void }) {
             capacity to acclimate is.
           </li>
           <li>
+            <strong>Rate of environmental change</strong> (Lindsey, Fields, Nocedal, Brooks &amp; Kussell, 2013,
+            <em> Evolutionary rescue from extinction is contingent on a lower rate of environmental change</em>,
+            Nature): survival there depended on how <em>fast</em> conditions shifted, not just how far — slow
+            drift left time to adapt, a sudden jump outran it. EVO tracks an exponential moving average of the
+            world's actual per-tick temperature and rainfall change and charges every organism an extra energy
+            cost proportional to that rate, buffered by its <code>plasticity</code> gene. The same total climate
+            swing costs far more if God Mode inflicts it in one tick than if it drifts there naturally over many
+            generations — this is why a Dark Age now visibly crashes population within seconds where the
+            same net cooling applied gradually would barely register.
+          </li>
+          <li>
+            <strong>Seasonal timing</strong> (Franks, Sim &amp; Weis, 2007, <em>Rapid evolution of flowering
+            time by an annual plant in response to a climate fluctuation</em>, PNAS): that study measured a wild
+            population's reproductive timing shifting within a handful of generations to track a changed growing
+            season. Every organism in EVO carries a heritable <code>seasonalTiming</code> gene — its preferred
+            phase of the year to reproduce — and attempting to reproduce far from that phase risks the attempt
+            failing outright. Nothing forces which phase wins; it is whichever timing the world's actual
+            food/climate cycle happens to reward.
+          </li>
+          <li>
             <strong>Scavenging / carcasses</strong> (loosely motivated by the ecological-network-fragility
             literature, e.g. Sanders et al., 2016, <em>Environmental Change Makes Robust Ecological Networks
             Fragile</em>): every death leaves a body-mass-sized, decaying food item any organism can eat (more
@@ -120,7 +140,14 @@ export function About({ onClose }: { onClose: () => void }) {
           markings, RangeShifter/CDMetaPOP's explicit habitat-patch connectivity and gene-flow statistics, and any
           explicit food-web/interaction-network graph or fragility analysis. These are genuinely different (and
           in several cases much larger) pieces of software; EVO borrows one mechanic or one measurable
-          relationship from each rather than reimplementing the paper.
+          relationship from each rather than reimplementing the paper. Also not modeled, despite being adjacent
+          to mechanics above: a distinct "environmental memory" that outlasts the rate-shock EMA (Abreu, Mathur
+          &amp; Petrov, 2024, <em>Environmental memory alters the fitness effects of adaptive mutations in
+          fluctuating environments</em>); priming from a lineage's past stress history (Bell &amp; Gonzalez, 2012,
+          <em> Evolutionary rescue and adaptation to abrupt environmental change depends upon the history of
+          stress</em>); and explicit antagonistic-pleiotropy trade-off matrices between traits (Buskirk et al.,
+          2020, <em>Antagonistic pleiotropy conceals molecular adaptations in changing environments</em>) beyond
+          the trade-offs that already fall out of shared energy upkeep.
         </p>
       </div>
     </Overlay>
