@@ -1,6 +1,10 @@
 import { useState } from 'react';
 import type { WorldConfig } from '../../simulation/types';
 import orbitalHero from '../../assets/evo-orbital-hero.png';
+import worldAtlas from '../../assets/world-atlas.png';
+import worldCrisis from '../../assets/world-crisis.png';
+import worldSpace from '../../assets/world-space.png';
+import './CreateWorld.css';
 
 function randomSeed(): string {
   return String(Math.floor(100000 + Math.random() * 900000));
@@ -16,12 +20,13 @@ function shortWorldId(seed: string): string {
 export function CreateWorld({ onStart }: { onStart: (config: WorldConfig) => void }) {
   const [seed, setSeed] = useState(randomSeed());
   const [population, setPopulation] = useState(400);
-  const [customPop, setCustomPop] = useState(false);
   const [foodAbundance, setFoodAbundance] = useState(1);
   const [mutationRate, setMutationRate] = useState(0.04);
   const [climate, setClimate] = useState<WorldConfig['climate']>('temperate');
   const [worldSize, setWorldSize] = useState(3200);
-  const [advanced, setAdvanced] = useState(false);
+  const [tab, setTab] = useState<'world'|'life'|'evolution'|'advanced'>('world');
+  const [temperature,setTemperature] = useState(15);
+  const [rainfall,setRainfall] = useState(1);
   const [showSettings, setShowSettings] = useState(false);
   const [closing, setClosing] = useState(false);
 
@@ -45,6 +50,8 @@ export function CreateWorld({ onStart }: { onStart: (config: WorldConfig) => voi
       foodAbundance,
       mutationRate,
       climate,
+      initialTemperatureC:temperature,
+      initialRainfall:rainfall,
     };
   }
 
@@ -100,121 +107,30 @@ export function CreateWorld({ onStart }: { onStart: (config: WorldConfig) => voi
     );
   }
 
-  return (
-    <div
-      style={{
-        height: '100%',
-        width: '100%',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background:
-          'radial-gradient(circle at 30% 20%, rgba(94,230,197,0.08), transparent 45%), radial-gradient(circle at 75% 75%, rgba(217,140,255,0.06), transparent 50%), var(--bg)',
-        transition: 'opacity .26s ease, filter .26s ease',
-        opacity: closing ? 0 : 1,
-        filter: closing ? 'blur(6px)' : 'none',
-      }}
-    >
-      <div style={{ maxWidth: 560, width: '100%', padding: 24 }}>
-        <div style={{ textAlign: 'center', marginBottom: 36 }}>
-          <div style={{ fontSize: 56, fontWeight: 800, letterSpacing: 6, color: 'var(--accent)' }}>EVO</div>
-          <div style={{ color: 'var(--text-dim)', fontSize: 14, marginTop: 6 }}>Evolution, one mutation at a time.</div>
+  return <main className={`universe-settings ${closing?'is-closing':''}`} style={{backgroundImage:`url(${worldSpace})`}}>
+    <header className="universe-brand"><span>E V O</span><small>ARTIFICIAL LIFE LAB</small></header>
+    <div className="universe-config reference-card">
+      <div className="universe-config-heading"><div><small>EVERY WORLD BEGINS WITH A POSSIBILITY</small><h1>CREATE A UNIVERSE</h1></div><button aria-label="Back to launch" onClick={()=>setShowSettings(false)}>×</button></div>
+      <nav className="universe-tabs" aria-label="World setup sections">{(['world','life','evolution','advanced'] as const).map(section=><button key={section} aria-pressed={tab===section} className={tab===section?'is-active':''} onClick={()=>setTab(section)}>{section.replace(/^./,letter=>letter.toUpperCase())}</button>)}</nav>
+      <div className="universe-config-body">
+        <div className="universe-fields">
+          {tab==='world' && <>
+            <span className="universe-field-label">CLIMATE PRESET</span>
+            <div className="universe-presets">{(['temperate','hot','cold','variable'] as const).map(preset=><button key={preset} aria-pressed={climate===preset} className={`climate-${preset} ${climate===preset?'is-active':''}`} onClick={()=>{setClimate(preset);setTemperature(preset==='hot'?23:preset==='cold'?10:15);}}><img src={preset==='hot'?worldCrisis:worldAtlas} alt="" /><span>{preset}</span></button>)}</div>
+            <SetupSlider label="World diameter" value={worldSize} display={`${worldSize.toLocaleString()} m`} min={1200} max={6000} step={200} onChange={setWorldSize} />
+            <SetupSlider label="Initial base temperature" value={temperature} display={`${temperature}°C`} min={3} max={27} step={1} onChange={setTemperature} />
+            <SetupSlider label="Initial rainfall" value={rainfall} display={`${rainfall.toFixed(2)}×`} min={.2} max={2.5} step={.05} onChange={setRainfall} />
+            <p className="universe-note">Explore a circular world of mountains, shores and evolving ecosystems. Climate thumbnails are illustrative.</p>
+          </>}
+          {tab==='life' && <><h2>A beginning, not a blueprint.</h2><p className="universe-note">Organisms start with random inherited traits. Survival and reproduction shape what follows.</p><div className="universe-population-presets">{[200,400,800].map(value=><button key={value} className={population===value?'is-active':''} onClick={()=>setPopulation(value)}>{value} organisms</button>)}</div><SetupSlider label="Starting organisms" value={population} display={population.toLocaleString()} min={10} max={4000} step={10} onChange={setPopulation} /><SetupSlider label="Food abundance" value={foodAbundance} display={`${foodAbundance.toFixed(2)}×`} min={.2} max={2} step={.05} onChange={setFoodAbundance} /></>}
+          {tab==='evolution' && <><h2>Small changes. Infinite forms.</h2><p className="universe-note">Mutation creates heritable variation. There is no prescribed evolutionary goal: the environment selects through survival.</p><SetupSlider label="Initial mutation rate" value={mutationRate} display={`${(mutationRate*100).toFixed(1)}%`} min={.005} max={.2} step={.005} onChange={setMutationRate} /><div className="universe-evolution-note"><span>HERITABLE VARIATION</span><p>Higher rates introduce more variation, but can also disrupt successful traits.</p></div></>}
+          {tab==='advanced' && <><h2>Make the world your own.</h2><label className="universe-seed">WORLD SEED<div><input aria-label="World seed" maxLength={100} value={seed} onChange={event=>setSeed(event.target.value)} /><button aria-label="Generate random seed" onClick={()=>setSeed(randomSeed())}>↻</button></div></label><p className="universe-note">An identical seed and settings reproduce the same natural history. Interventions change its course.</p><div className="universe-resolution"><span>TERRAIN RESOLUTION</span><b>{buildConfig().gridResolution} × {buildConfig().gridResolution}</b><p>Scales with world size to retain landscape detail.</p></div></>}
         </div>
-
-        <div className="glass" style={{ padding: 24 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Create a World</h2>
-            <button className="btn" onClick={() => setAdvanced((a) => !a)}>
-              {advanced ? 'QUICK START' : 'ADVANCED WORLD SETTINGS'}
-            </button>
-          </div>
-
-          <label className="field">
-            Population
-            <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-              {[200, 400, 800].map((p) => (
-                <button
-                  key={p}
-                  className={`btn ${!customPop && population === p ? 'active' : ''}`}
-                  onClick={() => {
-                    setPopulation(p);
-                    setCustomPop(false);
-                  }}
-                >
-                  {p}
-                </button>
-              ))}
-              <button className={`btn ${customPop ? 'active' : ''}`} onClick={() => setCustomPop(true)}>
-                Custom
-              </button>
-              {customPop && (
-                <input
-                  type="number"
-                  min={10}
-                  max={4000}
-                  value={population}
-                  onChange={(e) => setPopulation(Math.max(10, Math.min(4000, Number(e.target.value))))}
-                  style={{ width: 90 }}
-                />
-              )}
-            </div>
-          </label>
-
-          {advanced && (
-            <>
-              <label className="field">
-                Food abundance <span className="value">{foodAbundance.toFixed(2)}x</span>
-                <input type="range" min={0.2} max={2} step={0.05} value={foodAbundance} onChange={(e) => setFoodAbundance(Number(e.target.value))} />
-              </label>
-              <label className="field">
-                Mutation rate <span className="value">{(mutationRate * 100).toFixed(1)}%</span>
-                <input type="range" min={0.005} max={0.2} step={0.005} value={mutationRate} onChange={(e) => setMutationRate(Number(e.target.value))} />
-              </label>
-              <label className="field">
-                World size <span className="value">{worldSize} units</span>
-                <input type="range" min={1200} max={6000} step={200} value={worldSize} onChange={(e) => setWorldSize(Number(e.target.value))} />
-              </label>
-              <label className="field">
-                Climate
-                <select value={climate} onChange={(e) => setClimate(e.target.value as WorldConfig['climate'])}>
-                  <option value="temperate">Temperate</option>
-                  <option value="hot">Hot</option>
-                  <option value="cold">Cold</option>
-                  <option value="variable">Variable</option>
-                </select>
-              </label>
-            </>
-          )}
-
-          <label className="field">
-            World seed
-            <div style={{ display: 'flex', gap: 8 }}>
-              <input type="text" value={seed} onChange={(e) => setSeed(e.target.value)} style={{ flex: 1, fontFamily: 'var(--mono)' }} />
-              <button className="btn" onClick={() => setSeed(randomSeed())}>
-                🎲
-              </button>
-            </div>
-          </label>
-
-          <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
-            <button
-              className="btn primary"
-              style={{ flex: 1, padding: '12px 0', fontSize: 14 }}
-              onClick={() => launch(buildConfig())}
-            >
-              CREATE UNIVERSE
-            </button>
-            <button
-              className="btn"
-              style={{ padding: '12px 18px' }}
-              onClick={() => launch(buildConfig())}
-              title="Re-run this exact seed and settings"
-            >
-              REPLAY SEED
-            </button>
-          </div>
-        </div>
+        <aside className="universe-preview"><div className="universe-preview-globe" style={{backgroundImage:`url(${worldAtlas})`}} /><small>WORLD {shortWorldId(seed)}</small><h2>{climate.replace(/^./,letter=>letter.toUpperCase())} world</h2><dl><div><dt>Diameter</dt><dd>{worldSize.toLocaleString()} m</dd></div><div><dt>Organisms</dt><dd>{population.toLocaleString()}</dd></div><div><dt>Temperature</dt><dd>{temperature}°C base</dd></div><div><dt>Rainfall</dt><dd>{rainfall.toFixed(2)}×</dd></div><div><dt>Mutation</dt><dd>{(mutationRate*100).toFixed(1)}%</dd></div></dl></aside>
       </div>
+      <footer className="universe-config-footer"><span>LIFE DOESN'T FOLLOW A SCRIPT.</span><button disabled={closing || !seed.trim()} onClick={()=>launch(buildConfig())}>CREATE WORLD →</button></footer>
     </div>
-  );
+  </main>;
 }
+
+function SetupSlider({label,value,display,min,max,step,onChange}:{label:string;value:number;display:string;min:number;max:number;step:number;onChange:(value:number)=>void}) { return <label className="universe-slider"><span>{label}</span><input aria-label={label} type="range" value={value} min={min} max={max} step={step} onChange={event=>onChange(Number(event.target.value))} /><b>{display}</b></label>; }

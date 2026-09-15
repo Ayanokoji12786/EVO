@@ -3,6 +3,8 @@ import type { Genome } from '../genetics/genome';
 export type TerrainType = 'grass' | 'forest' | 'desert' | 'tundra' | 'water' | 'mountain' | 'fertile' | 'toxic';
 
 export interface WorldConfig {
+  initialTemperatureC?: number;
+  initialRainfall?: number;
   seed: string;
   worldSize: number; // world is worldSize x worldSize units
   gridResolution: number; // terrain/food grid cells per axis

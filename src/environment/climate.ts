@@ -3,21 +3,22 @@ import type { TerrainGrid } from './terrain';
 import { TERRAIN_PROPS, terrainAt } from './terrain';
 
 export function createClimate(config: WorldConfig): ClimateState {
-  const base = config.climate === 'hot' ? 0.4 : config.climate === 'cold' ? -0.4 : config.climate === 'variable' ? 0 : 0;
+  const base = config.initialTemperatureC === undefined ? (config.climate === 'hot' ? .4 : config.climate === 'cold' ? -.4 : 0) : Math.max(-1,Math.min(1,(config.initialTemperatureC-15)/12));
+  const rainfall = Math.max(.2,Math.min(2.5,config.initialRainfall ?? 1));
   return {
     baseTemperature: base,
     season: 0,
     seasonLength: 600,
     dayNightProgress: 0,
     dayLength: 120,
-    rainfall: 1,
+    rainfall,
     windX: 0,
     windY: 0,
     disasterCooldown: 0,
     tempChangeRate: 0,
     rainfallChangeRate: 0,
     prevBaseTemperature: base,
-    prevRainfall: 1,
+    prevRainfall: rainfall,
   };
 }
 

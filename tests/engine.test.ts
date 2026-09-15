@@ -25,6 +25,12 @@ describe('deterministic seeded simulation', () => {
     expect(recorded?.temperatureC).toBeGreaterThanOrEqual(9);
     expect(recorded?.temperatureC).toBeLessThanOrEqual(21);
   });
+  it('applies custom starting climate values before the world starts', () => {
+    const world = createWorld(baseConfig({initialTemperatureC:24,initialRainfall:1.6}));
+    expect(world.climate.baseTemperature).toBeCloseTo(.75);
+    expect(world.climate.rainfall).toBe(1.6);
+    expect(world.climate.prevRainfall).toBe(1.6);
+  });
   it('produces an identical trajectory for two worlds created from the same seed and config', () => {
     const worldA = createWorld(baseConfig());
     const worldB = createWorld(baseConfig());
