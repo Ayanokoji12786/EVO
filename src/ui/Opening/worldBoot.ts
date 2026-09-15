@@ -1,6 +1,22 @@
-import type { HistoryEvent } from '../../simulation/types';
+import type { HistoryEvent, WorldConfig } from '../../simulation/types';
 
 export type WorldBootMode = 'birth' | 'resume';
+
+/**
+ * A short, world-conditioned line shown during boot instead of a single fixed quote —
+ * scarcity/cold/abundance are picked from the actual config the player chose, in priority
+ * order (a cold, scarce world reads as "enduring", not "abundant"), so it never contradicts
+ * what the player is about to see. Falls back to a neutral line for an unremarkable
+ * temperate/default world rather than forcing one of the three onto every seed.
+ */
+export function flavorLine(config: Pick<WorldConfig, 'climate' | 'foodAbundance'>): string {
+  if (config.climate === 'cold') return 'LIFE LEARNS TO ENDURE.';
+  if (config.foodAbundance <= 0.7) return 'WAITING FOR RAIN.';
+  if (config.foodAbundance >= 1.3) return 'ABUNDANCE INVITES CHANGE.';
+  if (config.climate === 'hot') return 'THE HEAT REWARDS THE PATIENT.';
+  if (config.climate === 'variable') return 'THE WORLD HAS NOT YET DECIDED WHAT IT WILL BE.';
+  return 'LIFE BEGINS WITH A SINGLE POSSIBILITY.';
+}
 
 export interface ResumeFrame {
   generation: number;

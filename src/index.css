@@ -111,6 +111,8 @@ body {
 
 /* Launch screen — a composition-led observatory, with the planet as the product. */
 .launch-screen { position:absolute; inset:0; isolation:isolate; overflow:hidden; color:#eaf2f6; background:#02070a; }
+.launch-screen.is-closing { animation: launch-screen-close .28s ease forwards; pointer-events: none; }
+@keyframes launch-screen-close { to { opacity: 0; filter: blur(6px); } }
 .launch-orbital-backdrop { position:absolute; z-index:0; inset:0; background-position:center; background-size:cover; background-repeat:no-repeat; animation:orbital-drift 22s ease-in-out infinite alternate; }
 .launch-atmosphere { position:absolute; z-index:1; inset:0; pointer-events:none; background:linear-gradient(90deg,rgba(0,5,8,.9) 0%,rgba(0,5,8,.66) 17%,rgba(0,5,8,.27) 41%,transparent 65%),linear-gradient(0deg,rgba(0,4,7,.42),transparent 27%),radial-gradient(ellipse at 23% 57%,rgba(1,10,14,.15),transparent 36%); }
 .launch-header { position:absolute; z-index:3; top:25px; left:38px; right:40px; display:flex; align-items:center; min-height:20px; color:#aebec9; }
@@ -605,8 +607,23 @@ select, input[type="text"], input[type="number"] {
 .simulation-ui {
   pointer-events: auto;
 }
-.simulation-ui.is-visible { animation: simulation-ui-reveal .72s ease .12s both; }
-@keyframes simulation-ui-reveal { from { opacity: 0; } to { opacity: 1; } }
+/* Persistent HUD chrome fades in one section at a time instead of all at once, echoing
+   the boot sequence's own staggered reveal. Only the five always-present top-level pieces
+   get this treatment — later, conditionally-mounted panels (God Mode, modals, toasts) are
+   deliberately untouched so this rule can't fight their own entrance animations. */
+.simulation-ui.is-visible .sim-topbar,
+.simulation-ui.is-visible .world-card,
+.simulation-ui.is-visible .sim-rail,
+.simulation-ui.is-visible .compass-biome,
+.simulation-ui.is-visible .milestone-timeline {
+  animation: simulation-ui-reveal .6s cubic-bezier(.16,.8,.2,1) both;
+}
+.simulation-ui.is-visible .sim-topbar { animation-delay: .05s; }
+.simulation-ui.is-visible .world-card { animation-delay: .2s; }
+.simulation-ui.is-visible .sim-rail { animation-delay: .35s; }
+.simulation-ui.is-visible .compass-biome { animation-delay: .5s; }
+.simulation-ui.is-visible .milestone-timeline { animation-delay: .5s; }
+@keyframes simulation-ui-reveal { from { opacity: 0; translate: 0 8px; } to { opacity: 1; translate: 0 0; } }
 .world-boot {
   position: absolute;
   inset: 0;
@@ -627,19 +644,26 @@ select, input[type="text"], input[type="number"] {
   background:
     radial-gradient(ellipse 90% 70% at 50% 60%, rgba(2,5,8,.4) 0%, rgba(1,4,6,.74) 52%, #020304 88%),
     linear-gradient(180deg, rgba(1,3,5,.82) 0%, rgba(1,3,5,.4) 38%, rgba(1,3,5,.5) 62%, rgba(1,3,5,.9) 100%);
-  transition: opacity 1.4s cubic-bezier(.16,.8,.2,1);
+  transition: opacity 2.6s cubic-bezier(.16,.8,.2,1);
 }
 .first-cell-loader::after {
   z-index: 4;
   opacity: .3;
   background: radial-gradient(circle at 50% 46%, transparent 0 8%, rgba(1,4,4,.12) 31%, rgba(0,0,0,.52) 100%);
 }
-.first-cell-loader.is-alive::before { opacity: .22; }
+/* Ecology/Arrival: the dark vignette, the photographic backdrop and the corner bokeh all
+   dissolve away together (see below), so what's left visible is the real, already-
+   rendering WorldCanvas underneath the whole boot section — a real "living top-down world
+   view" rather than a faked one, since the world is fully generated (just paused) the
+   entire time the boot sequence plays. */
+.phase-ecology.first-cell-loader::before,
+.phase-arrival.first-cell-loader::before { opacity: .16; }
+.first-cell-loader.is-alive::before { opacity: .1; transition-duration: 1s; }
 
 /* A real photographic backdrop (the same orbital-hero shot used on the landing page)
    sits beneath the vignette above, so the boot screen shares the app's visual language
-   instead of reading as pure CSS/SVG. Slow Ken-Burns drift keeps it from feeling static
-   across the ~7s sequence. */
+   instead of reading as pure CSS/SVG. Slow Ken-Burns drift keeps it from feeling static,
+   and it fades out entirely once Ecology begins revealing the real world underneath. */
 .world-boot-backdrop {
   position: absolute;
   inset: -4%;
@@ -648,7 +672,10 @@ select, input[type="text"], input[type="number"] {
   background-position: 66% 38%;
   filter: saturate(.5) brightness(.4) contrast(1.05);
   animation: world-boot-backdrop-drift 16s ease-in-out infinite alternate;
+  transition: opacity 2.6s ease;
 }
+.phase-ecology .world-boot-backdrop,
+.phase-arrival .world-boot-backdrop { opacity: 0; }
 @keyframes world-boot-backdrop-drift { from { transform: scale(1.06) translate(0, 0); } to { transform: scale(1.14) translate(-1.4%, 1%); } }
 
 /* Cheap fractal-noise film grain over the whole scene — the single biggest lever for
@@ -665,8 +692,10 @@ select, input[type="text"], input[type="number"] {
 
 /* Ambient out-of-focus cells in the corners, matching the reference's bokeh depth-of-field
    — cheap radial gradients rather than real blur-heavy shapes, since this whole scene
-   already has multiple filter chains active. */
-.world-boot-bokeh { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; opacity: .7; }
+   already has multiple filter chains active. Fades with the rest of the overlay art. */
+.world-boot-bokeh { position: absolute; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; opacity: .7; transition: opacity 2.2s ease; }
+.phase-ecology .world-boot-bokeh,
+.phase-arrival .world-boot-bokeh { opacity: 0; }
 .world-boot-bokeh i { position: absolute; border-radius: 50%; opacity: .5; filter: blur(1.5px); background: radial-gradient(circle at 38% 32%, rgba(120,175,220,.5), rgba(20,45,70,.35) 55%, rgba(5,12,20,0) 78%); animation: bokeh-drift 14s ease-in-out infinite both; }
 .bokeh-a { width: 220px; height: 220px; left: -60px; top: 8%; animation-delay: -2s; }
 .bokeh-b { width: 140px; height: 140px; left: 4%; bottom: 10%; animation-delay: -7s; }
@@ -675,37 +704,68 @@ select, input[type="text"], input[type="number"] {
 .bokeh-e { width: 90px; height: 90px; left: 20%; top: 60%; animation-delay: -1s; opacity: .32; }
 @keyframes bokeh-drift { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(10px,-14px) scale(1.05); } }
 
-.world-boot-particles,
-.world-boot-life,
-.world-boot-division,
+/* Ecology stage flourishes: rain streaks and small vegetation-bloom sparkles over the
+   dissolving overlay — cheap CSS, but they land exactly on the "vegetation grows, rain
+   moves in" beat of the brief. */
+.world-boot-rain {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  opacity: 0;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(100deg, rgba(200,230,255,.35) 0px, rgba(200,230,255,.35) 1px, transparent 1px, transparent 14px);
+  background-size: 100% 220%;
+  animation: world-boot-rain-fall .9s linear infinite;
+  transition: opacity 1.4s ease;
+}
+.phase-ecology .world-boot-rain,
+.phase-arrival .world-boot-rain { opacity: .2; }
+@keyframes world-boot-rain-fall { from { background-position: 0 0; } to { background-position: 0 220%; } }
+
+.world-boot-bloom { position: absolute; inset: 0; z-index: 2; pointer-events: none; opacity: 0; transition: opacity 1.4s ease; }
+.phase-ecology .world-boot-bloom,
+.phase-arrival .world-boot-bloom { opacity: 1; }
+.world-boot-bloom i {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #8be6a8;
+  box-shadow: 0 0 8px rgba(139,230,168,.8);
+  opacity: 0;
+  animation: bloom-pop 1.8s cubic-bezier(.16,.8,.2,1) var(--delay,0s) both;
+}
+@keyframes bloom-pop {
+  0% { opacity: 0; transform: translate(calc(-50% + var(--x)), calc(-50% + var(--y))) scale(.2); }
+  40% { opacity: .9; transform: translate(calc(-50% + var(--x)), calc(-50% + var(--y))) scale(1); }
+  100% { opacity: .55; transform: translate(calc(-50% + var(--x)), calc(-50% + var(--y))) scale(.85); }
+}
+
+/* Arrival: a brief burst of soft blurred blobs standing in for "diving through clouds"
+   right as the camera dive (finishIntroduction in SimulationScreen.tsx) begins. */
+.world-boot-flythrough { position: absolute; inset: 0; z-index: 8; pointer-events: none; opacity: 0; }
+.phase-arrival .world-boot-flythrough { animation: flythrough-burst 1.3s cubic-bezier(.16,.8,.2,1) both; }
+.world-boot-flythrough i { position: absolute; border-radius: 50%; filter: blur(18px); background: radial-gradient(circle, rgba(235,248,255,.9), rgba(235,248,255,0) 70%); }
+.world-boot-flythrough i:nth-child(1) { width: 340px; height: 220px; left: 10%; top: 30%; }
+.world-boot-flythrough i:nth-child(2) { width: 260px; height: 180px; right: 8%; top: 50%; }
+.world-boot-flythrough i:nth-child(3) { width: 300px; height: 200px; left: 35%; top: 65%; }
+@keyframes flythrough-burst { 0% { opacity: 0; transform: scale(.6); } 40% { opacity: .85; transform: scale(1.15); } 100% { opacity: 0; transform: scale(1.9); } }
+
 .world-boot-brand,
 .world-boot-tagline,
 .world-boot-title,
 .world-boot-god-hint,
 .world-boot-skip { position: absolute; }
-.world-boot-particles,
-.world-boot-life { inset: 0; pointer-events: none; }
-.world-boot-particles { z-index: 1; }
-.world-boot-particles i {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 3px;
-  height: 3px;
-  border-radius: 50%;
-  background: #a4ffe5;
-  box-shadow: 0 0 9px rgba(113,248,211,.9);
-  opacity: 0;
-  animation: primordial-particle 5.3s cubic-bezier(.16,.8,.2,1) var(--delay) both;
-}
-@keyframes primordial-particle {
-  0%, 9% { opacity: 0; transform: translate(-50%,-50%) scale(.25); }
-  15% { opacity: .8; transform: translate(calc(-50% + var(--x)), calc(-50% + var(--y))) scale(.65); }
-  38% { opacity: .2; transform: translate(-50%, -50%) scale(.5); }
-  75%, 100% { opacity: 0; transform: translate(-50%,-50%) scale(.25); }
-}
-/* --- Dividing cell centerpiece for the boot loader --- */
+
+/* --- Dividing cell centerpiece for the boot loader (Seed/Matter; fades out for Life) --- */
 .dividing-cell { position:relative; z-index:2; width:min(68vh, 78vw, 460px); height:min(68vh, 78vw, 460px); flex:none; display:flex; align-items:center; justify-content:center; filter:drop-shadow(0 0 70px rgba(255,140,60,.32)) drop-shadow(0 0 130px rgba(80,150,220,.36)) drop-shadow(0 0 8px rgba(255,225,180,.4)); animation:cell-bloom 1.6s cubic-bezier(.16,.85,.22,1) both, cell-drift 9s ease-in-out infinite 1.6s; }
+/* A CSS animation's forward-filled end value beats any later transition/class rule on
+   the same property, so fading out needs its own animation (which fully replaces the
+   `animation` shorthand above via specificity) rather than a plain opacity transition. */
+.dividing-cell.is-fading { animation: cell-fade-out 1.1s ease forwards; }
+@keyframes cell-fade-out { from { opacity: 1; transform: scale(1); } to { opacity: 0; transform: scale(1.08); } }
 .dividing-cell-aura { position:absolute; inset:-16%; border-radius:50%; background:radial-gradient(circle at 50% 50%,rgba(255,180,110,.2),rgba(90,160,230,.2) 42%,transparent 70%); animation:cell-aura-breathe 4.2s ease-in-out infinite; }
 .dividing-cell-svg { position:relative; width:100%; height:100%; }
 @keyframes cell-drift { 0%,100% { transform:translateY(0) rotate(0deg); } 50% { transform:translateY(-7px) rotate(1.2deg); } }
@@ -727,106 +787,75 @@ select, input[type="text"], input[type="number"] {
 @keyframes cell-filaments-flicker { 0%,100% { opacity:.65; } 50% { opacity:1; } }
 @keyframes cell-particle { 0% { opacity:0; transform:translate(-50%,-50%) scale(.3); } 30% { opacity:1; } 100% { opacity:0; transform:translate(calc(-50% + var(--dx)),calc(-50% + var(--dy))) scale(.6); } }
 
-/* Legacy primordial-cell used in reduced-motion fallback */
-.primordial-cell {
-  position: relative;
-  z-index: 2;
-  width: 180px;
-  height: 180px;
-  flex: none;
-  opacity: 0;
-  border-radius: 48% 52% 46% 54%;
-  filter: drop-shadow(0 0 46px rgba(70,150,255,.4));
-  animation: cell-assemble 5.8s cubic-bezier(.16,.85,.22,1) both;
-  display: none;
-}
-.primordial-cell i { position: absolute; display: block; }
-.cell-membrane {
-  inset: 0;
-  border: 1px solid rgba(150,205,255,.8);
-  border-radius: inherit;
-  background: radial-gradient(circle at 34% 30%, rgba(220,240,255,.32), rgba(64,140,214,.16) 46%, rgba(6,14,26,.42) 76%);
-  box-shadow: inset 0 0 34px rgba(94,176,255,.3), 0 0 46px rgba(70,150,255,.42);
-}
-.cell-core {
-  left: 50%;
-  top: 50%;
-  width: 34px;
-  height: 34px;
-  translate: -50% -50%;
-  border-radius: 50%;
-  background: radial-gradient(circle at 40% 38%, #fff2df, #ff9552 58%, #ff5b3d 100%);
-  box-shadow: 0 0 28px #ff8a4d, 0 0 64px rgba(255,120,60,.5);
-}
-.cell-organelle {
-  width: 22px;
-  height: 14px;
-  border: 1px solid rgba(190,225,255,.7);
-  border-radius: 65% 35% 65% 35%;
-  opacity: 0;
-  transition: opacity .3s;
-}
-.cell-organelle-a { left: 38px; top: 48px; rotate: -25deg; }
-.cell-organelle-b { right: 34px; bottom: 46px; rotate: 32deg; }
-.cell-strand {
-  left: 50%;
-  top: 50%;
-  width: 68px;
-  height: 24px;
-  translate: -50% -50%;
-  border-top: 1px solid #dcefff;
-  border-bottom: 1px solid #dcefff;
-  border-radius: 50%;
-  opacity: 0;
-  transform: rotate(32deg);
-  transition: opacity .25s;
-}
-.cell-strand-b { transform: rotate(-32deg); }
-.first-cell-loader.stage-3 .cell-organelle,
-.first-cell-loader.stage-4 .cell-organelle,
-.first-cell-loader.stage-5 .cell-organelle,
-.first-cell-loader.stage-6 .cell-organelle,
-.first-cell-loader.stage-7 .cell-organelle { opacity: 1; }
-.first-cell-loader.stage-4 .cell-strand,
-.first-cell-loader.stage-5 .cell-strand,
-.first-cell-loader.stage-6 .cell-strand,
-.first-cell-loader.stage-7 .cell-strand { opacity: .85; }
-@keyframes cell-assemble {
-  0%, 8% { opacity: 0; scale: .12; filter: blur(5px); }
-  17% { opacity: 1; scale: .34; filter: blur(0); }
-  31% { opacity: 1; scale: 1; }
-  62% { opacity: 1; scale: 1.04; }
-  79% { opacity: 1; scale: 1.13; }
-  91%, 100% { opacity: 0; scale: 1.8; filter: blur(2px); }
-}
-.world-boot-life { z-index: 3; }
-.world-boot-life i {
+/* --- Matter stage: filaments become land (contour lines draw on, ridges rise, clouds
+   drift in) — occupies the same box as the dividing cell, cross-fading with it. Stays
+   formed through Life so the land persists once it exists. --- */
+.world-boot-artgroup { position: relative; width:min(68vh, 78vw, 460px); height:min(68vh, 78vw, 460px); flex: none; transition: opacity 1.2s ease; }
+.phase-ecology .world-boot-artgroup,
+.phase-arrival .world-boot-artgroup { opacity: 0; }
+.terrain-forming { position: absolute; inset: 0; opacity: 0; transition: opacity 1.3s ease; pointer-events: none; }
+.terrain-forming.is-formed { opacity: 1; }
+.terrain-forming-svg { width: 100%; height: 100%; }
+.terrain-cloud { fill: rgba(200,225,245,.4); filter: blur(2px); opacity: 0; transition: opacity 1.1s ease .5s; animation: terrain-cloud-drift 12s ease-in-out infinite; }
+.terrain-forming.is-formed .terrain-cloud { opacity: .8; }
+.terrain-cloud-a { animation-delay: -2s; }
+.terrain-cloud-b { animation-delay: -6s; }
+@keyframes terrain-cloud-drift { 0%,100% { transform: translateX(-4px); } 50% { transform: translateX(6px); } }
+.terrain-contour { fill: none; stroke: rgba(150,205,255,.55); stroke-width: 1; stroke-dasharray: 260; stroke-dashoffset: 260; transition: stroke-dashoffset 1.6s cubic-bezier(.16,.8,.2,1); }
+.terrain-forming.is-formed .terrain-contour-a { stroke-dashoffset: 0; transition-delay: .1s; }
+.terrain-forming.is-formed .terrain-contour-b { stroke-dashoffset: 0; transition-delay: .3s; }
+.terrain-forming.is-formed .terrain-contour-c { stroke-dashoffset: 0; transition-delay: .5s; }
+.terrain-ridge { transform-origin: 50% 100%; transform: scaleY(0); transition: transform 1.4s cubic-bezier(.16,.85,.22,1); }
+.terrain-ridge-far { fill: rgba(60,90,120,.55); }
+.terrain-ridge-near { fill: rgba(30,55,78,.75); }
+.terrain-forming.is-formed .terrain-ridge-far { transform: scaleY(1); transition-delay: .2s; }
+.terrain-forming.is-formed .terrain-ridge-near { transform: scaleY(1); transition-delay: .4s; }
+.terrain-water { opacity: 0; transition: opacity 1s ease .6s; }
+.terrain-forming.is-formed .terrain-water { opacity: 1; }
+
+/* Seed-stage world-seed readout, anchored inside the art box so it never reflows layout
+   as it appears/disappears. */
+.world-boot-seedline { position: absolute; left: 50%; bottom: 4%; translate: -50% 0; margin: 0; color: rgba(210,235,255,.7); font: 10px var(--mono); letter-spacing: 2.2px; white-space: nowrap; animation: boot-status-in .4s ease .3s both; }
+
+/* --- Life stage: the branching genetic network the (now-faded) cell hands off to,
+   echoing the app's own Tree of Life rather than inventing a new motif. Small organism
+   silhouettes flicker briefly at the tips. --- */
+.genetic-network { position: absolute; inset: 0; opacity: 0; transition: opacity 1s ease; pointer-events: none; }
+.genetic-network.is-formed { opacity: 1; }
+.genetic-network-svg { width: 100%; height: 100%; }
+.genetic-network-branches path { stroke-dasharray: 120; stroke-dashoffset: 120; opacity: 0; }
+.genetic-network.is-formed .genetic-network-branches path { animation: network-branch-draw 1.2s cubic-bezier(.16,.8,.2,1) forwards; }
+.genetic-network.is-formed .genetic-network-branches path:nth-child(1) { animation-delay: .05s; }
+.genetic-network.is-formed .genetic-network-branches path:nth-child(2) { animation-delay: .15s; }
+.genetic-network.is-formed .genetic-network-branches path:nth-child(3) { animation-delay: .25s; }
+.genetic-network.is-formed .genetic-network-branches path:nth-child(4) { animation-delay: .35s; }
+.genetic-network.is-formed .genetic-network-branches path:nth-child(5) { animation-delay: .55s; }
+.genetic-network.is-formed .genetic-network-branches path:nth-child(6) { animation-delay: .65s; }
+@keyframes network-branch-draw { from { opacity: .8; stroke-dashoffset: 120; } to { opacity: .8; stroke-dashoffset: 0; } }
+.network-node { opacity: 0; transform-box: fill-box; transform-origin: center; transform: scale(.2); filter: drop-shadow(0 0 4px rgba(159,227,255,.8)); }
+.genetic-network.is-formed .network-node { animation: network-node-pop .5s cubic-bezier(.34,1.56,.64,1) forwards; animation-delay: var(--delay, 0s); }
+.network-node-root { fill: #ffcf9e; filter: drop-shadow(0 0 8px rgba(255,180,110,.8)); }
+@keyframes network-node-pop { from { opacity: 0; transform: scale(.2); } to { opacity: 1; transform: scale(1); } }
+.genetic-network-blips { position: absolute; inset: 0; pointer-events: none; }
+.genetic-network-blips i {
   position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 7px;
+  left: var(--x);
+  top: var(--y);
+  width: 11px;
   height: 7px;
-  border: 1px solid rgba(213,255,239,.78);
-  border-radius: 55% 45% 62% 38%;
-  background: linear-gradient(135deg, #7cf5c9, #2f9f84);
-  box-shadow: 0 0 10px rgba(102,244,201,.55);
+  border-radius: 65% 35% 58% 42%;
+  background: linear-gradient(135deg,#eaf6ff,#7cc7f5);
+  box-shadow: 0 0 8px rgba(140,210,255,.7);
   opacity: 0;
-  transform: translate(-50%, -50%) scale(.3);
+  transform: translate(-50%, -50%) scale(.5);
 }
-.first-cell-loader.stage-7 .world-boot-life i,
-.first-cell-loader.stage-8 .world-boot-life i { animation: life-radiates 1.5s cubic-bezier(.16,.8,.2,1) var(--delay) both; }
-.world-boot-life i:nth-child(3n) { width: 10px; height: 5px; border-radius: 70% 30% 40% 60%; }
-.world-boot-life i:nth-child(4n) { width: 4px; height: 10px; border-radius: 70% 30% 60% 40%; }
-@keyframes life-radiates {
-  from { opacity: 0; transform: translate(-50%, -50%) scale(.2); }
-  35% { opacity: .95; }
-  to { opacity: .72; transform: translate(calc(-50% + var(--x)), calc(-50% + var(--y))) scale(var(--scale)); }
+.genetic-network.is-formed .genetic-network-blips i { animation: network-blip-flicker 1.6s ease var(--delay,0s) 1 both; }
+@keyframes network-blip-flicker {
+  0%, 100% { opacity: 0; transform: translate(-50%,-50%) scale(.5); }
+  35% { opacity: .9; transform: translate(-50%,-50%) scale(1); }
+  70% { opacity: .5; transform: translate(-50%,-50%) scale(1); }
 }
-.world-boot-division { z-index: 3; inset: 0; pointer-events: none; }
-.world-boot-division i { position:absolute; left:50%; top:46%; width:8px; height:8px; border:1px solid rgba(211,255,237,.8); border-radius:55% 45% 62% 38%; background:radial-gradient(circle at 35% 30%,#dcfff0,#319d83); box-shadow:0 0 12px rgba(102,244,201,.7); opacity:0; transform:translate(-50%,-50%) scale(.12); }
-.first-cell-loader.stage-7 .world-boot-division i,
-.first-cell-loader.stage-8 .world-boot-division i { animation:cell-division .95s cubic-bezier(.16,.8,.2,1) var(--delay) both; }
-@keyframes cell-division { 0% { opacity:0; transform:translate(-50%,-50%) scale(.12); } 18% { opacity:.92; transform:translate(-50%,-50%) scale(.75); } 100% { opacity:.72; transform:translate(calc(-50% + var(--x)),calc(-50% + var(--y))) scale(.58); } }
+
 .world-boot-frame {
   position: relative;
   z-index: 5;
@@ -895,14 +924,6 @@ select, input[type="text"], input[type="number"] {
   max-width: 460px;
   color: rgba(210,228,240,.6);
   font: italic 13px/1.55 var(--font);
-}
-.world-boot-quote cite {
-  display: block;
-  margin-top: 8px;
-  font: 9px var(--mono);
-  font-style: normal;
-  letter-spacing: 2px;
-  color: rgba(150,182,205,.5);
 }
 .world-boot-god-hint {
   z-index: 7;
@@ -974,7 +995,6 @@ select, input[type="text"], input[type="number"] {
   .world-boot-frame { gap: 14px; padding: 60px 20px 36px; }
   .world-boot-brand,
   .world-boot-tagline { display: none; }
-  .primordial-cell { width: 120px; height: 120px; }
   .world-boot-stagelist { gap: 6px 12px; font-size: 8px; }
   .world-boot-quote { font-size: 11px; }
 }

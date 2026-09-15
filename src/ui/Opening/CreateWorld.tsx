@@ -23,6 +23,16 @@ export function CreateWorld({ onStart }: { onStart: (config: WorldConfig) => voi
   const [worldSize, setWorldSize] = useState(3200);
   const [advanced, setAdvanced] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [closing, setClosing] = useState(false);
+
+  // Fade this screen to near-black before handing off to the boot sequence, instead of
+  // an instant cut — the boot sequence's own opening frame is already near-black, so this
+  // reads as one continuous darkening rather than two unrelated screens.
+  function launch(cfg: WorldConfig) {
+    if (closing) return;
+    setClosing(true);
+    window.setTimeout(() => onStart(cfg), 260);
+  }
 
   function buildConfig(): WorldConfig {
     return {
@@ -41,7 +51,7 @@ export function CreateWorld({ onStart }: { onStart: (config: WorldConfig) => voi
   if (!showSettings) {
     const worldId = shortWorldId(seed);
     return (
-      <main className="launch-screen" aria-labelledby="launch-title">
+      <main className={`launch-screen${closing ? ' is-closing' : ''}`} aria-labelledby="launch-title">
         <div className="launch-orbital-backdrop" style={{ backgroundImage: `url(${orbitalHero})` }} aria-hidden="true" />
         <div className="launch-atmosphere" aria-hidden="true" />
 
@@ -64,7 +74,7 @@ export function CreateWorld({ onStart }: { onStart: (config: WorldConfig) => voi
             <button className="launch-action launch-action-primary" onClick={() => setShowSettings(true)}>
               <span>CREATE UNIVERSE</span><b aria-hidden="true">→</b>
             </button>
-            <button className="launch-action launch-action-secondary" onClick={() => onStart(buildConfig())}>
+            <button className="launch-action launch-action-secondary" onClick={() => launch(buildConfig())}>
               <i className="launch-continue-mark" aria-hidden="true">◉</i>
               <span><strong>QUICK START</strong><small>WORLD {worldId} · GENERATION 0</small></span><b aria-hidden="true">→</b>
             </button>
@@ -100,6 +110,9 @@ export function CreateWorld({ onStart }: { onStart: (config: WorldConfig) => voi
         justifyContent: 'center',
         background:
           'radial-gradient(circle at 30% 20%, rgba(94,230,197,0.08), transparent 45%), radial-gradient(circle at 75% 75%, rgba(217,140,255,0.06), transparent 50%), var(--bg)',
+        transition: 'opacity .26s ease, filter .26s ease',
+        opacity: closing ? 0 : 1,
+        filter: closing ? 'blur(6px)' : 'none',
       }}
     >
       <div style={{ maxWidth: 560, width: '100%', padding: 24 }}>
@@ -187,14 +200,14 @@ export function CreateWorld({ onStart }: { onStart: (config: WorldConfig) => voi
             <button
               className="btn primary"
               style={{ flex: 1, padding: '12px 0', fontSize: 14 }}
-              onClick={() => onStart(buildConfig())}
+              onClick={() => launch(buildConfig())}
             >
               CREATE UNIVERSE
             </button>
             <button
               className="btn"
               style={{ padding: '12px 18px' }}
-              onClick={() => onStart(buildConfig())}
+              onClick={() => launch(buildConfig())}
               title="Re-run this exact seed and settings"
             >
               REPLAY SEED

@@ -216,7 +216,18 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
         {modal === 'about' && <About onClose={() => setModal(null)} />}
         {modal === 'cinematic' && <GenerationsLater controller={controller} onClose={() => setModal(null)} />}
       </div>}
-      {!introComplete && <WorldBootSequence mode={bootMode} seed={config.seed} generation={controller.world.maxGenerationSeen} events={controller.world.events.all()} onComplete={finishIntroduction} />}
+      {!introComplete && (
+        <WorldBootSequence
+          mode={bootMode}
+          seed={config.seed}
+          generation={controller.world.maxGenerationSeen}
+          events={controller.world.events.all()}
+          climate={config.climate}
+          foodAbundance={config.foodAbundance}
+          onComplete={finishIntroduction}
+          onEcologyReveal={() => setPaused(false)}
+        />
+      )}
     </div>
   );
 }
