@@ -3,7 +3,7 @@ import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js
 import type { WorldState } from '../simulation/worldState';
 import type { Organism } from '../simulation/types';
 import { geneticDistance } from '../genetics/genome';
-import { elevationAtWorld } from './terrainMesh';
+import { elevationAtWorld, isWithinWorldDisc } from './terrainMesh';
 import hideUrl from '../assets/creature-hide.png';
 
 function hashHue(n: number): number {
@@ -118,12 +118,17 @@ export class CreatureField {
 
     for (const org of world.organisms.values()) {
       if (!org.alive) continue;
+      if (!isWithinWorldDisc(world.terrain.worldSize, org.x, org.y, 5)) continue;
       if (i >= MAX_INSTANCES) break;
       this.idToIndex.set(org.id, i);
 
       const t = org.genome.traits;
       const groundY = elevationAtWorld(world.terrain, org.x, org.y);
-      const scale = Math.max(0.3, t.size) * (world.terrain.worldSize / 1400) * 6;
+      // Diet is already the simulation's real herbivore-to-carnivore trait. A strong
+      // predator silhouette makes that behavioural difference readable at a glance,
+      // without altering speed, metabolism, combat, or the organism's actual genome.
+      const predatorScale = t.diet >= 0.62 ? 1.85 : t.diet >= 0.42 ? 1.2 : 1;
+      const scale = Math.max(0.3, t.size) * (world.terrain.worldSize / 1400) * 6 * predatorScale;
 
       this.dummy.position.set(org.x, groundY, org.y);
       this.dummy.rotation.set(0, -org.heading, 0);

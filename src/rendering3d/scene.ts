@@ -79,7 +79,10 @@ export function updateLighting(rig: SceneRig, climate: ClimateState, worldSize: 
   rig.fillLight.intensity = 0.3 + (1 - light) * 0.35;
 
   const sky = NIGHT_SKY.clone().lerp(DAY_SKY, light);
-  renderer.setClearColor(sky, 1);
+  // The generated cosmic backdrop lives beneath the transparent WebGL canvas. Retaining a
+  // trace of the real daylight hue in the fog keeps the terrain responsive to its clock
+  // without returning to the old flat blue rectangular sky.
+  renderer.setClearColor(sky, 0);
   rig.fog.color.copy(NIGHT_FOG).lerp(DAY_FOG, light);
 
   const starMat = rig.starField.material as THREE.PointsMaterial;

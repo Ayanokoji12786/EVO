@@ -1,8 +1,11 @@
+import worldAtlas from '../../assets/world-atlas.png';
+
 export function WorldCard({ seed, climate, year, tempC }: { seed: string; climate: string; year: number; tempC: number }) {
   const label = climate.charAt(0).toUpperCase() + climate.slice(1);
   return (
     <aside className="world-card" aria-label="World summary">
       <div className="world-card-thumb" aria-hidden="true">
+        <img src={worldAtlas} alt="" />
         <div className="world-card-globe" />
       </div>
       <div className="world-card-body">

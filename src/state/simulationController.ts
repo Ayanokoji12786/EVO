@@ -1,8 +1,9 @@
 import { createWorld, stepWorld } from '../simulation/engine';
 import type { WorldConfig } from '../simulation/types';
 import type { WorldState } from '../simulation/worldState';
-import { createCamera, panCamera, syncCamera, worldToScreen, zoomCamera, type Camera } from '../rendering/camera';
+import { createCamera, panCamera, syncCamera, worldFitZoom, worldToScreen, zoomCamera, type Camera } from '../rendering/camera';
 import { WorldRenderer3D } from '../rendering3d/worldRenderer';
+import { isWithinWorldDisc } from '../rendering3d/terrainMesh';
 import { ancestryChain, allDescendants } from '../simulation/genealogy';
 import { useSimStore, type InspectorData } from './simStore';
 import type { Organism } from '../simulation/types';
@@ -38,6 +39,9 @@ export class SimulationController {
     this.renderer3d.setSize(w, h);
     this.camera.viewportW = w;
     this.camera.viewportH = h;
+    // A resize can change the full-world framing threshold (particularly when rotating a
+    // tablet or moving between displays), so keep the camera inside its useful range.
+    this.camera.zoom = Math.max(worldFitZoom(this.camera), this.camera.zoom);
     syncCamera(this.camera);
   }
 
@@ -159,8 +163,10 @@ export class SimulationController {
     let bestDist = Infinity;
     for (const org of this.world.organisms.values()) {
       if (!org.alive) continue;
+      if (!isWithinWorldDisc(this.world.config.worldSize, org.x, org.y, 5)) continue;
       const [ox, oy] = worldToScreen(this.camera, org.x, org.y);
-      const r = Math.max(8, org.genome.traits.size * 16 * this.camera.zoom) + 5;
+      const predatorScale = org.genome.traits.diet >= 0.62 ? 1.85 : org.genome.traits.diet >= 0.42 ? 1.2 : 1;
+      const r = Math.max(8, org.genome.traits.size * 16 * this.camera.zoom * predatorScale) + 5;
       const d = Math.hypot(ox - sx, oy - sy);
       if (d <= r && d < bestDist) {
         bestDist = d;

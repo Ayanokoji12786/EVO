@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { SimulationController } from '../../state/simulationController';
 import { useSimStore } from '../../state/simStore';
+import worldSpace from '../../assets/world-space.png';
 
 type Impact = { before: number; after: number; eliminated: number; percent: number; extinctSpecies: number; survivors: number };
 
@@ -47,7 +48,7 @@ export function WorldCanvas({ controller, onMeteorImpact }: { controller: Simula
   }, [controller]);
 
   return (
-    <div ref={containerRef} style={{ position: 'absolute', inset: 0 }}>
+    <div ref={containerRef} className="world-canvas-stage" style={{ backgroundImage: `url(${worldSpace})` }}>
       <canvas
         ref={canvasRef}
         style={{ width: '100%', height: '100%', display: 'block', cursor: rainEquipped ? 'none' : isDragging ? 'grabbing' : 'grab' }}

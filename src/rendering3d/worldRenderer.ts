@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { WorldState } from '../simulation/worldState';
 import type { Camera } from '../rendering/camera';
 import { createSceneRig, updateLighting, type SceneRig } from './scene';
-import { TerrainMesh, elevationAtWorld } from './terrainMesh';
+import { TerrainMesh, elevationAtWorld, isWithinWorldDisc } from './terrainMesh';
 import { CreatureField } from './creatures';
 import { FoodField3D, StormField3D } from './food';
 import { VegetationField } from './vegetation';
@@ -30,7 +30,7 @@ export class WorldRenderer3D {
   private startTime = performance.now();
 
   constructor(canvas: HTMLCanvasElement, worldSize: number) {
-    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+    this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
     this.renderer.shadowMap.enabled = true;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -39,7 +39,7 @@ export class WorldRenderer3D {
 
     this.rig = createSceneRig(worldSize);
     this.terrain = new TerrainMesh();
-    this.rig.scene.add(this.terrain.mesh, this.terrain.waterMesh);
+    this.rig.scene.add(this.terrain.mesh, this.terrain.waterMesh, this.terrain.atmosphereMesh);
     this.rig.scene.add(this.vegetation.group);
 
     this.creatures = new CreatureField();
@@ -75,7 +75,8 @@ export class WorldRenderer3D {
     const ray = new THREE.Raycaster();
     ray.setFromCamera(new THREE.Vector2(sx / camera.viewportW * 2 - 1, 1 - sy / camera.viewportH * 2), camera.three);
     const hit = ray.intersectObject(this.terrain.mesh, false)[0];
-    return hit ? [hit.point.x, hit.point.z] : null;
+    if (!hit) return null;
+    return isWithinWorldDisc(world.config.worldSize, hit.point.x, hit.point.z) ? [hit.point.x, hit.point.z] : null;
   }
 
   /** Forces the terrain mesh/texture to rebuild on the next draw — call after God Mode
@@ -132,7 +133,8 @@ export class WorldRenderer3D {
       return;
     }
     const groundY = elevationAtWorld(world.terrain, org.x, org.y);
-    const scale = Math.max(0.3, org.genome.traits.size) * (world.terrain.worldSize / 1400) * 6;
+    const predatorScale = org.genome.traits.diet >= 0.62 ? 1.85 : org.genome.traits.diet >= 0.42 ? 1.2 : 1;
+    const scale = Math.max(0.3, org.genome.traits.size) * (world.terrain.worldSize / 1400) * 6 * predatorScale;
 
     this.selectionRing.visible = true;
     this.selectionRing.position.set(org.x, groundY + 0.4, org.y);

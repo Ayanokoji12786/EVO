@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { TerrainGrid } from '../environment/terrain';
-import { elevationAtWorld } from './terrainMesh';
+import { elevationAtWorld, isWithinWorldDisc } from './terrainMesh';
 
 /** Seed-stable scenery placed only in living biomes, rebuilt after terraforming. */
 export class VegetationField {
@@ -38,6 +38,7 @@ export class VegetationField {
     const random = (n: number) => { const v = Math.sin(n * 127.1 + 311.7) * 43758.5453; return v - Math.floor(v); };
     for (let i = 0; i < 7000 && count < 1200; i++) {
       const x = random(i * 3) * grid.worldSize, z = random(i * 3 + 1) * grid.worldSize;
+      if (!isWithinWorldDisc(grid.worldSize, x, z, 12)) continue;
       const cell = Math.min(grid.resolution - 1, Math.floor(z / grid.cellSize)) * grid.resolution + Math.min(grid.resolution - 1, Math.floor(x / grid.cellSize));
       const biome = grid.type[cell];
       if (biome !== 1 && !(biome === 6 && random(i + 88) > 0.5) && !(biome === 0 && random(i + 99) > 0.93)) continue;

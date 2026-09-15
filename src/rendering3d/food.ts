@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import type { WorldState } from '../simulation/worldState';
-import { elevationAtWorld } from './terrainMesh';
+import { elevationAtWorld, isWithinWorldDisc } from './terrainMesh';
 
 const FOOD_COLOR: Record<string, THREE.Color> = {
   plant: new THREE.Color(0x71834b),
@@ -31,6 +31,7 @@ export class FoodField3D {
     let i = 0;
     for (const food of items.values()) {
       if (i >= MAX_FOOD_INSTANCES) break;
+      if (!isWithinWorldDisc(world.terrain.worldSize, food.x, food.y, 4)) continue;
       if (skipPlants && food.kind === 'plant' && food.id % 3 !== 0) continue;
       const groundY = elevationAtWorld(world.terrain, food.x, food.y);
       const scale = food.kind === 'plant' ? 2.2 : food.kind === 'hardShell' ? 3.4 : 3.8;
@@ -73,6 +74,11 @@ export class StormField3D {
     }
     storms.forEach((storm, i) => {
       const disc = this.discs[i];
+      if (!isWithinWorldDisc(world.terrain.worldSize, storm.x, storm.y)) {
+        disc.visible = false;
+        return;
+      }
+      disc.visible = true;
       const groundY = elevationAtWorld(world.terrain, storm.x, storm.y);
       disc.position.set(storm.x, groundY + 1, storm.y);
       disc.scale.setScalar(storm.radius);
