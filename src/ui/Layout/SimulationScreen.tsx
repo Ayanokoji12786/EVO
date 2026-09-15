@@ -194,7 +194,7 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
           onOpenCinematic={() => openModal('cinematic')}
           onExit={onExit}
         />
-        <WorldCard seed={seedDisplay} climate={config.climate} year={worldYear} tempC={worldTempC} />
+        {!inspector && modal === null && <WorldCard seed={seedDisplay} climate={config.climate} year={worldYear} tempC={worldTempC} />}
         <SimulationRail activeTool={activeRailTool} onSelectTool={handleSelectTool} />
 
         {godArrival && <GodArrival generation={useSimStore.getState().stats?.generation ?? 0} seed={useSimStore.getState().seedDisplay} />}

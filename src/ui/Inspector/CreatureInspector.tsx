@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useSimStore } from '../../state/simStore';
 import type { SimulationController } from '../../state/simulationController';
 import { drawCreatureSprite } from '../../rendering/creatureSprite';
+import specimenPortrait from '../../assets/specimen-portrait.png';
+import './CreatureInspector.css';
 
 const CORE_TRAITS = [
   { key: 'maxSpeed', label: 'Speed', range: [.3, 3.2] },
@@ -9,6 +11,7 @@ const CORE_TRAITS = [
   { key: 'metabolism', label: 'Metabolism', range: [.5, 2.6] },
   { key: 'aggression', label: 'Aggression', range: [0, 1] },
   { key: 'tempToleranceRange', label: 'Cold Tolerance', range: [.15, 1.4] },
+  { key: 'size', label: 'Body Size', range: [.3, 3.5] },
 ] as const;
 
 export function CreatureInspector({ controller, onAction }: { controller: SimulationController; onAction?: (message: string) => void }) {
@@ -18,12 +21,15 @@ export function CreatureInspector({ controller, onAction }: { controller: Simula
   const setXrayGene = useSimStore((s) => s.setXrayGene);
   const setOverlay = useSimStore((s) => s.setOverlay);
   const [showGenome, setShowGenome] = useState(false);
+  const [liveSpecimen, setLiveSpecimen] = useState(false);
 
   if (!inspector) return null;
 
   const isFollowing = followId === inspector.id;
   const energy = Math.round((inspector.energy / inspector.maxEnergy) * 100);
   const mutations = inspector.mutatedFromParent.slice(0, 3);
+  const parentTraits = inspector.ancestryChain.find((ancestor) => ancestor.id === inspector.parentId)?.traits;
+  const predator = (inspector.traits.diet ?? 0) >= .62;
 
   return (
     <section className="creature-inspector hud-panel" aria-label={`Creature inspector for ${inspector.name}`}>
@@ -31,12 +37,14 @@ export function CreatureInspector({ controller, onAction }: { controller: Simula
         <div>
           <h2>{inspector.name}{inspector.protectedFromThreats && <span className="creature-protected-badge" title="Protected from threats">🛡</span>}</h2>
           <p>{inspector.speciesName}</p>
+          <span className={`creature-diet ${predator ? 'is-predator' : ''}`}>{predator ? 'PREDATOR' : (inspector.traits.diet ?? 0) >= .42 ? 'OMNIVORE' : 'HERBIVORE'}</span>
         </div>
         <button className="creature-close" onClick={() => controller.select(null)} aria-label="Close creature inspector">×</button>
       </header>
 
       <div className="creature-specimen-frame">
-        <CreatureSpecimen controller={controller} organismId={inspector.id} />
+        {liveSpecimen ? <CreatureSpecimen controller={controller} organismId={inspector.id} /> : <img src={specimenPortrait} alt="Detailed artistic visualization of an evolved organism" />}
+        <button className="creature-portrait-toggle" onClick={() => setLiveSpecimen((value) => !value)}>{liveSpecimen ? 'LIVE PHENOTYPE · VIEW ART' : 'CONCEPT PORTRAIT · VIEW LIVE PHENOTYPE'}</button>
         {!inspector.alive && <em>DECEASED · {inspector.causeOfDeath ?? 'CAUSE UNRECORDED'}</em>}
       </div>
 
@@ -47,7 +55,7 @@ export function CreatureInspector({ controller, onAction }: { controller: Simula
       </div>
 
       <section className="creature-genome">
-        <div className="creature-section-title"><span>GENOME</span><a onClick={() => setShowGenome((open) => !open)}>{showGenome ? 'Hide Full Genome' : 'View Full Genome'} →</a></div>
+        <div className="creature-section-title"><span>GENOME</span><button onClick={() => setShowGenome((open) => !open)}>{showGenome ? 'Hide Full Genome' : 'View Full Genome'} →</button></div>
         {CORE_TRAITS.map(({ key, label, range }) => {
           const value = inspector.traits[key];
           if (value === undefined) return null;
@@ -55,13 +63,21 @@ export function CreatureInspector({ controller, onAction }: { controller: Simula
         })}
       </section>
 
-      {showGenome && <>
         <section className="creature-mutations">
           <div className="creature-section-title"><span>RECENT MUTATIONS</span></div>
           {mutations.length > 0
-            ? mutations.map((trait) => <p key={trait}><b>▲</b>{formatTrait(trait)} <small>Inherited variation</small></p>)
+            ? mutations.map((trait) => {
+              const before = parentTraits?.[trait];
+              const after = inspector.traits[trait];
+              const delta = before === undefined || after === undefined ? null : (after - before) / (Math.abs(before) + 1e-6) * 100;
+              return <p key={trait}><b className={delta !== null && delta < 0 ? 'mutation-down' : ''}>{delta !== null && delta < 0 ? '▼' : '▲'}</b>{formatTrait(trait)} <small>{delta === null ? 'Inherited variation' : `${delta >= 0 ? '+' : ''}${delta.toFixed(1)}%`}</small></p>;
+            })
             : <p className="mutation-stable"><b>●</b>No notable trait drift recorded</p>}
         </section>
+
+        <div className="creature-family"><p><span>PARENT</span><b>{inspector.parentId === null ? 'FIRST LINEAGE' : `EVO-${inspector.parentId}`}</b></p><p><span>OFFSPRING</span><b>{inspector.offspringCount}</b></p></div>
+
+      {showGenome && <>
 
         <div className="creature-detail-drawer">
           <DetailRow label="Body size" value={inspector.traits.size?.toFixed(2) ?? '—'} />
@@ -127,7 +143,7 @@ function CreatureSpecimen({ controller, organismId }: { controller: SimulationCo
 function TraitBar({ label, value, min, max, mutated, onHover, gene }: { label: string; value: number; min: number; max: number; mutated: boolean; onHover: (gene: string | null) => void; gene: string }) {
   const fraction = Math.max(0, Math.min(1, (value - min) / (max - min)));
   return <div className="creature-trait" onMouseEnter={() => onHover(gene)} onMouseLeave={() => onHover(null)}>
-    <span>{label}</span><i><b style={{ width: `${fraction * 100}%` }} /></i>{mutated && <em>▲</em>}
+    <span>{label}{mutated && <em> ▲</em>}</span><i><b style={{ width: `${fraction * 100}%` }} /></i><strong>{value.toFixed(2)}</strong>
   </div>;
 }
 
