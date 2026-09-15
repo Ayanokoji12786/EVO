@@ -2,6 +2,7 @@ import { createWorld, stepWorld } from '../simulation/engine';
 import type { WorldConfig } from '../simulation/types';
 import type { WorldState } from '../simulation/worldState';
 import { TRAIT_SPECS } from '../genetics/traits';
+import { traitPercentChange } from '../statistics/stats';
 
 export interface ExperimentVariable {
   path: 'config.foodAbundance' | 'config.mutationRate' | 'climate.rainfall' | 'climate.baseTemperature' | 'laws.predationEffectiveness';
@@ -75,7 +76,7 @@ export function compareResults(pair: ExperimentPair): ExperimentResult {
   const comparison: ExperimentComparisonRow[] = TRAIT_SPECS.map((spec) => {
     const cv = cAvg[spec.key] ?? 0;
     const ev = eAvg[spec.key] ?? 0;
-    const deltaPct = cv !== 0 ? ((ev - cv) / Math.abs(cv)) * 100 : 0;
+    const deltaPct = traitPercentChange(spec.key, cv, ev);
     return { trait: spec.key, control: cv, experiment: ev, deltaPct };
   });
 

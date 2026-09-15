@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import type { SimulationController } from '../../state/simulationController';
 import { TRAIT_SPECS } from '../../genetics/traits';
+import { traitPercentChange } from '../../statistics/stats';
 
 function hashHue(n: number): number {
   return (n * 137.508) % 360;
@@ -28,7 +29,7 @@ export function TimeMachine({ controller, onClose }: { controller: SimulationCon
     return TRAIT_SPECS.map((t) => {
       const before = compareSnap.stats.avg[t.key] ?? 0;
       const after = snap.stats.avg[t.key] ?? 0;
-      const pct = before !== 0 ? ((after - before) / Math.abs(before)) * 100 : 0;
+      const pct = traitPercentChange(t.key, before, after);
       return { key: t.key, before, after, pct };
     }).sort((a, b) => Math.abs(b.pct) - Math.abs(a.pct));
   }, [snap, compareSnap]);

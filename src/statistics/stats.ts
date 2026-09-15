@@ -1,5 +1,21 @@
 import type { Organism, StatsSnapshot } from '../simulation/types';
-import { TRAIT_SPECS } from '../genetics/traits';
+import { TRAIT_SPECS, traitSpec } from '../genetics/traits';
+
+/**
+ * Percent change from `before` to `after` for a given trait, safe for traits whose range
+ * straddles 0 (e.g. tempToleranceCenter, -1..1). A naive (after-before)/before blows up or
+ * flips sign wildly as `before` approaches 0 — a baseline of -0.02 can make a trivial
+ * absolute shift read as -386%, and a baseline of exactly 0 hides a real shift as "0%".
+ * Below 2% of the trait's own range, this expresses the change as a fraction of that range
+ * instead of relative to the near-zero baseline — still signed and comparable in magnitude
+ * to genuine relative-percent readings, just no longer unstable near 0.
+ */
+export function traitPercentChange(traitKey: string, before: number, after: number): number {
+  const spec = traitSpec(traitKey);
+  const range = spec.max - spec.min;
+  const nearZero = Math.abs(before) < range * 0.02;
+  return nearZero ? ((after - before) / range) * 100 : ((after - before) / Math.abs(before)) * 100;
+}
 
 export function computeStats(
   organismList: Organism[],
