@@ -21,8 +21,9 @@ import { CompassBiome } from './CompassBiome';
 import { SimulationRail, type RailTool } from './SimulationRail';
 import type { GodCategory } from '../GodMode/GodPanel';
 import { WorldAnalytics } from '../Analytics/WorldAnalytics';
+import { WorldInsights } from '../Insights/WorldInsights';
 
-type Modal = 'tree' | 'time' | 'experiment' | 'about' | 'cinematic' | 'analytics' | null;
+type Modal = 'tree' | 'time' | 'experiment' | 'about' | 'cinematic' | 'analytics' | 'insights' | null;
 
 // Fixed wheel position, independent of any click/anchor — matches the reference, where
 // the radial always opens in the same place rather than following the cursor.
@@ -192,6 +193,7 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
           onOpenExperiment={() => { setActiveRailTool('tools'); openModal('experiment'); }}
           onOpenAbout={() => openModal('about')}
           onOpenCinematic={() => openModal('cinematic')}
+          onOpenInsights={() => openModal('insights')}
           onExit={onExit}
         />
         {!inspector && modal === null && <WorldCard seed={seedDisplay} climate={config.climate} year={worldYear} tempC={worldTempC} />}
@@ -213,14 +215,15 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
         {evolutionVision && <EvolutionVision speciesCount={species.length} />}
         {divineToast && <div className="divine-toast">{divineToast}</div>}
 
-        <CompassBiome controller={controller} tempC={worldTempC} />
+        {modal === null && <CompassBiome controller={controller} tempC={worldTempC} />}
         <BottomTimeline controller={controller} onOpen={() => openModal('time')} />
         {inspector && modal === null && <div className="creature-inspector-slot"><CreatureInspector controller={controller} onAction={showDivineToast} /></div>}
 
         <DeathToast />
 
         {modal === 'tree' && <TreeOfLife controller={controller} onClose={() => { setModal(null); setActiveRailTool('world'); }} />}
-        {modal === 'analytics' && <WorldAnalytics controller={controller} onClose={() => { setModal(null); setActiveRailTool('world'); }} />}
+        {modal === 'analytics' && <WorldAnalytics controller={controller} onAsk={() => openModal('insights')} onClose={() => { setModal(null); setActiveRailTool('world'); }} />}
+        {modal === 'insights' && <WorldInsights controller={controller} onClose={() => { setModal(null); setActiveRailTool('world'); }} />}
         {modal === 'time' && <TimeMachine controller={controller} onClose={() => setModal(null)} />}
         {modal === 'experiment' && <ExperimentPanel controller={controller} onClose={() => { setModal(null); setActiveRailTool('world'); }} />}
         {modal === 'about' && <About onClose={() => setModal(null)} />}

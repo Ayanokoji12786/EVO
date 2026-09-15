@@ -9,6 +9,7 @@ export function TopBar({
   onOpenExperiment,
   onOpenAbout,
   onOpenCinematic,
+  onOpenInsights,
   onExit,
 }: {
   onOpenTree: () => void;
@@ -16,6 +17,7 @@ export function TopBar({
   onOpenExperiment: () => void;
   onOpenAbout: () => void;
   onOpenCinematic: () => void;
+  onOpenInsights: () => void;
   onExit: () => void;
 }) {
   const speed = useSimStore((s) => s.speed);
@@ -91,6 +93,7 @@ export function TopBar({
             <MenuItem icon="⏱" label="Time Machine" onClick={() => { onOpenTimeMachine(); setMenuOpen(false); }} />
             <MenuItem icon="🧪" label="Experiments" onClick={() => { onOpenExperiment(); setMenuOpen(false); }} />
             <MenuItem icon="🎬" label="500 Generations Later" onClick={() => { onOpenCinematic(); setMenuOpen(false); }} />
+            <MenuItem icon="✦" label="Ask the Universe" onClick={() => { onOpenInsights(); setMenuOpen(false); }} />
             <MenuItem icon="ℹ" label="About" onClick={() => { onOpenAbout(); setMenuOpen(false); }} />
             <div className="sim-overflow-sep" />
             <MenuItem icon="✕" label="Exit World" onClick={onExit} danger />

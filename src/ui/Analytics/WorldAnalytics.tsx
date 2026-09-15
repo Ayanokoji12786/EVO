@@ -43,7 +43,7 @@ const CARD_DEFS: { id: string; label: string; unit: string; read: (s: StatsSnaps
   { id: 'biomass', label: 'Biomass', unit: 'population × size', read: biomass, color: '#7fd88f', decimals: 0 },
 ];
 
-export function WorldAnalytics({ controller, onClose }: { controller: SimulationController; onClose: () => void }) {
+export function WorldAnalytics({ controller, onClose, onAsk }: { controller: SimulationController; onClose: () => void; onAsk: () => void }) {
   const [tab, setTab] = useState<Tab>('overview');
   const [timeRange, setTimeRange] = useState(0);
   const recordedHistory = useSimStore((s) => s.statsHistory);
@@ -165,7 +165,7 @@ export function WorldAnalytics({ controller, onClose }: { controller: Simulation
           </div>
         </div>}
 
-        {tab === 'traits' && <div className="analytics-panel analytics-panel-wide"><StatsPanel embedded /></div>}
+        {tab === 'traits' && <div className="analytics-panel analytics-panel-wide"><StatsPanel embedded onAsk={onAsk} /></div>}
         {tab === 'events' && <div className="analytics-panel analytics-panel-wide"><EventLogPanel embedded /></div>}
       </div>
     </section>
