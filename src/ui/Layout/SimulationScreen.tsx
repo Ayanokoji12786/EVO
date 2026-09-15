@@ -73,6 +73,7 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
   useEffect(() => () => {
     if (restoreSpeed.current) clearTimeout(restoreSpeed.current);
     if (revealRaf.current !== null) cancelAnimationFrame(revealRaf.current);
+    if (divineToastTimer.current) clearTimeout(divineToastTimer.current);
   }, []);
 
   const finishIntroduction = useCallback(() => {
@@ -106,6 +107,8 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
   if (!controller) return null;
 
   const enterGodWheel = (tool: RailTool, initialLayer: GodCategory | null) => {
+    setModal(null);
+    setPending(null);
     setActiveRailTool(tool);
     setGodInitialLayer(initialLayer);
     setRadialAnchor(GOD_WHEEL_ANCHOR);
@@ -131,6 +134,7 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
   // be the only floating panel on top of it — opening one always closes a dangling God
   // wheel first, so the two can never render stacked on top of each other.
   const openModal = (m: Exclude<Modal, null>) => {
+    setPending(null);
     setModal(m);
     setRadialAnchor(null);
     setGodInitialLayer(null);
@@ -138,6 +142,8 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
 
   const handleSelectTool = (tool: RailTool) => {
     if (tool === 'world') {
+      if (restoreSpeed.current) clearTimeout(restoreSpeed.current);
+      setGodArrival(false);
       setActiveRailTool('world');
       setGodMode(false);
       setPending(null);
@@ -150,6 +156,9 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
     if (tool === 'analytics') { setActiveRailTool('analytics'); openModal('analytics'); return; }
     if (tool === 'evolution') { setActiveRailTool('evolution'); openModal('tree'); return; }
     if (tool === 'life') {
+      setModal(null);
+      setRadialAnchor(null);
+      setPending(null);
       setActiveRailTool('life');
       if (!inspector) {
         let closest: Organism | null = null;

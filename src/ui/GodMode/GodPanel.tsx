@@ -72,11 +72,13 @@ export function GodPanel({ controller, initialLayer, onClose, onAction }: { cont
   }, [onClose]);
 
   const finishInstant = (message: string) => {
+    setPending(null);
     onAction?.(message);
     onClose();
   };
 
   const choose = (id: Category) => {
+    setPending(null);
     if (id === 'weather' || id === 'destruction' || id === 'evolution' || id === 'laws' || id === 'predators') { setLayer(id); return; }
     if (id === 'disease') {
       controller.god.createPlague(controller.world, { transmissionRate: 0.55, mortality: 0.32, incubationPeriod: 10, recoveryChance: 0.4, mutationRate: 0.02 });

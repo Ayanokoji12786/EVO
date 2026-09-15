@@ -3,7 +3,7 @@ import type { WorldConfig } from '../simulation/types';
 import type { WorldState } from '../simulation/worldState';
 import { createCamera, panCamera, syncCamera, worldFitZoom, worldToScreen, zoomCamera, type Camera } from '../rendering/camera';
 import { WorldRenderer3D } from '../rendering3d/worldRenderer';
-import { isWithinWorldDisc } from '../rendering3d/terrainMesh';
+import { elevationAtWorld, isWithinWorldDisc } from '../rendering3d/terrainMesh';
 import { ancestryChain, allDescendants } from '../simulation/genealogy';
 import { useSimStore, type InspectorData } from './simStore';
 import type { Organism } from '../simulation/types';
@@ -90,7 +90,7 @@ export class SimulationController {
     const followId = useSimStore.getState().followId;
     if (followId === null) return;
     const org = this.world.organisms.get(followId);
-    if (!org || !org.alive) {
+    if (!org || !org.alive || !isWithinWorldDisc(this.world.config.worldSize, org.x, org.y, 5)) {
       const rec = this.world.genealogy.get(followId);
       if (rec && rec.deathTick !== null) {
         useSimStore.getState().setDeathToast({
@@ -152,10 +152,12 @@ export class SimulationController {
   // --- Interaction ---
 
   pan(dx: number, dy: number) {
+    this.follow(null);
     panCamera(this.camera, dx, dy);
   }
   zoom(factor: number, sx?: number, sy?: number) {
     zoomCamera(this.camera, factor, sx, sy);
+    if (this.camera.zoom <= worldFitZoom(this.camera) + .0001) this.follow(null);
   }
 
   pickOrganismAt(sx: number, sy: number): Organism | null {
@@ -164,7 +166,7 @@ export class SimulationController {
     for (const org of this.world.organisms.values()) {
       if (!org.alive) continue;
       if (!isWithinWorldDisc(this.world.config.worldSize, org.x, org.y, 5)) continue;
-      const [ox, oy] = worldToScreen(this.camera, org.x, org.y);
+      const [ox, oy] = worldToScreen(this.camera, org.x, org.y, elevationAtWorld(this.world.terrain, org.x, org.y));
       const predatorScale = org.genome.traits.diet >= 0.62 ? 1.85 : org.genome.traits.diet >= 0.42 ? 1.2 : 1;
       const r = Math.max(8, org.genome.traits.size * 16 * this.camera.zoom * predatorScale) + 5;
       const d = Math.hypot(ox - sx, oy - sy);
@@ -193,6 +195,8 @@ export class SimulationController {
   }
 
   follow(orgId: number | null) {
+    const organism = orgId === null ? null : this.world.organisms.get(orgId);
+    if (organism && !isWithinWorldDisc(this.world.config.worldSize, organism.x, organism.y, 5)) orgId = null;
     useSimStore.getState().setFollow(orgId);
   }
 
@@ -234,6 +238,7 @@ export class SimulationController {
         const before = [...this.world.organisms.values()].filter((org) => org.alive).length;
         const speciesBefore = new Set([...this.world.organisms.values()].filter((org) => org.alive).map((org) => org.speciesId));
         god.triggerMeteor(this.world, worldX, worldY, action.radius);
+        this.renderer3d?.invalidateTerrain();
         const after = [...this.world.organisms.values()].filter((org) => org.alive).length;
         const speciesAfter = new Set([...this.world.organisms.values()].filter((org) => org.alive).map((org) => org.speciesId));
         impact = { before, after, eliminated: before - after, percent: before ? ((before - after) / before) * 100 : 0, extinctSpecies: [...speciesBefore].filter((id) => !speciesAfter.has(id)).length, survivors: speciesAfter.size };
@@ -241,9 +246,11 @@ export class SimulationController {
         }
       case 'volcano':
         god.triggerVolcano(this.world, worldX, worldY);
+        this.renderer3d?.invalidateTerrain();
         break;
       case 'flood':
         god.triggerFlood(this.world, worldX, worldY, action.radius);
+        this.renderer3d?.invalidateTerrain();
         break;
       case 'wildfire':
         god.triggerWildfire(this.world, worldX, worldY, action.radius);
