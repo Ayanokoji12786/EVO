@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { traitPercentChange } from '../src/statistics/stats';
+import { traitPercentChange, normalizedShannonDiversity } from '../src/statistics/stats';
+
+describe('normalized Shannon biodiversity',()=>{
+  it('is zero with no occupied species or just one',()=>{expect(normalizedShannonDiversity([0])).toBe(0);expect(normalizedShannonDiversity([12,0])).toBe(0);});
+  it('is one for equal species populations and lower for uneven ones',()=>{expect(normalizedShannonDiversity([20,20,20])).toBeCloseTo(1);expect(normalizedShannonDiversity([99,1])).toBeLessThan(.1);});
+});
 
 describe('traitPercentChange', () => {
   it('matches a plain relative percent change for a baseline well away from 0', () => {

@@ -1,7 +1,10 @@
 import { useState, useRef, useEffect } from 'react';
 import { useSimStore, type SpeedSetting } from '../../state/simStore';
+import { ReferenceIcon } from '../shared/ReferenceIcon';
+import { normalizedShannonDiversity } from '../../statistics/stats';
+import './ReferenceHud.css';
 
-const SPEEDS: SpeedSetting[] = [1, 5, 'max'];
+const SPEEDS: SpeedSetting[] = [1, 5, 10, 'max'];
 
 export function TopBar({
   onOpenTree,
@@ -23,6 +26,7 @@ export function TopBar({
   const speed = useSimStore((s) => s.speed);
   const paused = useSimStore((s) => s.paused);
   const stats = useSimStore((s) => s.stats);
+  const species = useSimStore((s) => s.species);
   const setSpeed = useSimStore((s) => s.setSpeed);
   const setPaused = useSimStore((s) => s.setPaused);
   const evolutionVision = useSimStore((s) => s.evolutionVision);
@@ -39,13 +43,7 @@ export function TopBar({
     return () => document.removeEventListener('mousedown', onDocClick);
   }, [menuOpen]);
 
-  // Approximation of "biodiversity" as a normalized Shannon-style diversity index the
-  // Analytics view would use — but computed cheap here from the population/species split
-  // so the top bar's biodiversity reading is a real number that changes with the world,
-  // not a placeholder. When only one species is alive, the index is 0.
-  const biodiversity = stats && stats.speciesCount > 1
-    ? Math.min(0.99, Math.log(stats.speciesCount) / Math.log(Math.max(2, stats.population / 20))).toFixed(2)
-    : '0.00';
+  const biodiversity = normalizedShannonDiversity(species.filter((s)=>s.extinctTick===null).map((s)=>s.population)).toFixed(2);
 
   return (
     <header className="sim-topbar">
@@ -72,11 +70,11 @@ export function TopBar({
             key={s}
             className={`sim-time-btn ${!paused && speed === s ? 'active' : ''}`}
             onClick={() => { setSpeed(s); setPaused(false); }}
+            title={s==='max' ? 'Maximum speed · limited by your device' : `${s}× simulation speed`}
           >
-            {s === 'max' ? '100×' : `${s}×`}
+            {s === 'max' ? 'MAX' : `${s}×`}
           </button>
         ))}
-        <span className="sim-time-chevrons" aria-hidden="true">⌃<br />⌄</span>
       </div>
 
       <button className={`sim-icon-btn ${evolutionVision ? 'active' : ''}`} onClick={() => setEvolutionVision(!evolutionVision)} title="Evolution Vision" aria-label="Toggle Evolution Vision">
@@ -89,12 +87,12 @@ export function TopBar({
         </button>
         {menuOpen && (
           <div className="sim-overflow-panel hud-panel">
-            <MenuItem icon="🌳" label="Tree of Life" onClick={() => { onOpenTree(); setMenuOpen(false); }} />
-            <MenuItem icon="⏱" label="Time Machine" onClick={() => { onOpenTimeMachine(); setMenuOpen(false); }} />
-            <MenuItem icon="🧪" label="Experiments" onClick={() => { onOpenExperiment(); setMenuOpen(false); }} />
-            <MenuItem icon="🎬" label="500 Generations Later" onClick={() => { onOpenCinematic(); setMenuOpen(false); }} />
-            <MenuItem icon="✦" label="Ask the Universe" onClick={() => { onOpenInsights(); setMenuOpen(false); }} />
-            <MenuItem icon="ℹ" label="About" onClick={() => { onOpenAbout(); setMenuOpen(false); }} />
+            <MenuItem icon="evolution" label="Tree of Life" onClick={() => { onOpenTree(); setMenuOpen(false); }} />
+            <MenuItem icon="analytics" label="Time Machine" onClick={() => { onOpenTimeMachine(); setMenuOpen(false); }} />
+            <MenuItem icon="experiment" label="Multiverse Experiments" onClick={() => { onOpenExperiment(); setMenuOpen(false); }} />
+            <MenuItem icon="globe" label="Evolution Replay" onClick={() => { onOpenCinematic(); setMenuOpen(false); }} />
+            <MenuItem icon="life" label="Ask the Universe" onClick={() => { onOpenInsights(); setMenuOpen(false); }} />
+            <MenuItem icon="laws" label="About the Simulation" onClick={() => { onOpenAbout(); setMenuOpen(false); }} />
             <div className="sim-overflow-sep" />
             <MenuItem icon="✕" label="Exit World" onClick={onExit} danger />
           </div>
@@ -119,7 +117,7 @@ function Readout({ icon, label, value }: { icon: React.ReactNode; label: string;
 function MenuItem({ icon, label, onClick, danger }: { icon: string; label: string; onClick: () => void; danger?: boolean }) {
   return (
     <button className={`menu-item ${danger ? 'danger' : ''}`} onClick={onClick}>
-      <span>{icon}</span><span>{label}</span>
+      <span>{icon==='✕' ? '×' : <ReferenceIcon kind={icon} size={17} />}</span><span>{label}</span>
     </button>
   );
 }
@@ -133,7 +131,7 @@ function PopulationIcon() {
   return <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="8" r="3" /><circle cx="17" cy="9" r="2.4" /><path d="M3 20c0-3 3-5 6-5s6 2 6 5" /><path d="M14 20c0-2 2-4 4.5-4s3.5 1.4 3.5 4" /></svg>;
 }
 function DnaIcon() {
-  return <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2v3M12 19v3M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z" /><path d="M5 12h1M18 12h1" /></svg>;
+  return <ReferenceIcon kind="evolution" size={22} />;
 }
 function PulseIcon() {
   return <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12h4l2-6 3 12 3-8 2 4h4" /></svg>;

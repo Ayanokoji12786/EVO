@@ -23,7 +23,7 @@ function synthesizeMilestones(events: HistoryEvent[]): Milestone[] {
     { re: /predator|carnivore/i, label: 'First Predator', icon: 'paw' },
     { re: /drought/i, label: 'Great Drought', icon: 'sun' },
     { re: /mass extinction|great dying/i, label: 'Mass Extinction', icon: 'skull' },
-    { re: /radiation|speciation|new species/i, label: 'Northern Radiation', icon: 'dna' },
+    { re: /radiation|speciation|new species/i, label: 'Speciation', icon: 'dna' },
     { re: /flight|wing|aerial/i, label: 'Flight Evolves', icon: 'dna' },
     { re: /volcano|meteor|wildfire/i, label: 'Impact', icon: 'flame' },
   ];
@@ -48,7 +48,6 @@ export function BottomTimeline({ controller, onOpen }: { controller: SimulationC
   const events = useSimStore((s) => s.events);
   const generation = stats?.generation ?? controller.world.maxGenerationSeen ?? 0;
   const milestones = useMemo(() => synthesizeMilestones(events), [events]);
-  const span = Math.max(1, generation);
 
   return (
     <div className="milestone-timeline" aria-label="Evolutionary timeline">
@@ -58,12 +57,11 @@ export function BottomTimeline({ controller, onOpen }: { controller: SimulationC
           {paused ? '▶' : '❚❚'}
         </button>
       </div>
-      <div className="milestone-track" onClick={onOpen} role="button" tabIndex={0} onKeyDown={(e) => (e.key === 'Enter' || e.key === ' ') && onOpen()}>
+      <div className="milestone-track" onClick={onOpen} role="button" aria-label="Open ordered evolutionary milestones" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpen(); } }}>
         <div className="milestone-track-line" />
         {milestones.map((m) => {
-          const left = Math.min(100, (m.generation / span) * 100);
           return (
-            <div key={m.id} className="milestone-point" style={{ left: `${left}%` }} title={`${m.label} · Gen ${m.generation.toLocaleString()}`}>
+            <div key={m.id} className="milestone-point" title={`${m.label} · Gen ${m.generation.toLocaleString()}`}>
               <MilestoneIcon type={m.icon} />
               <b>{m.label}</b>
               <em>Gen {m.generation.toLocaleString()}</em>

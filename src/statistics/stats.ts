@@ -77,3 +77,10 @@ export function computeStats(
     },
   };
 }
+/** Shannon entropy normalized by the number of occupied species; zero for one or none. */
+export function normalizedShannonDiversity(populations: number[]): number {
+  const occupied = populations.filter((p)=>Number.isFinite(p) && p>0);
+  if (occupied.length<2) return 0;
+  const total = occupied.reduce((sum,p)=>sum+p,0);
+  return -occupied.reduce((sum,p)=>sum+(p/total)*Math.log(p/total),0)/Math.log(occupied.length);
+}

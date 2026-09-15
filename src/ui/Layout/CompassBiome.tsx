@@ -13,7 +13,7 @@ const FOOD_LABEL: Record<'scarce' | 'moderate' | 'abundant', string> = {
  * moves with the ecosystem instead of being a static badge. */
 export function CompassBiome({ controller, tempC }: { controller: SimulationController; tempC: number }) {
   const stats = useSimStore((s) => s.stats);
-  const humidity = Math.round(45 + controller.world.climate.rainfall * 22);
+  const humidity = Math.round(Math.max(0,Math.min(100,45 + controller.world.climate.rainfall * 22)));
   const foodCount = controller.world.food.items.size;
   const foodBucket = foodCount > (stats?.population ?? 0) * 1.8 ? 'abundant' : foodCount > (stats?.population ?? 0) * 0.7 ? 'moderate' : 'scarce';
 
@@ -28,7 +28,7 @@ export function CompassBiome({ controller, tempC }: { controller: SimulationCont
       </div>
       <div className="compass-readout">
         <span>{tempC}°C</span><i>|</i>
-        <span>{humidity}% Humidity</span><i>|</i>
+        <span title="Global estimate derived from rainfall, not measured local humidity">{humidity}% Humidity est.</span><i>|</i>
         <span>{FOOD_LABEL[foodBucket]}</span>
       </div>
     </div>
