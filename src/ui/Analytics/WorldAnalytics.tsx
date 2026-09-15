@@ -197,7 +197,7 @@ function MetricCard({ def, history }: { def: (typeof CARD_DEFS)[number]; history
   );
 }
 
-function compactNumber(value: number) { return Math.abs(value) >= 1000 ? `${(value/1000).toFixed(Math.abs(value) >= 10000 ? 0 : 1)}K` : Number(value.toFixed(2)).toString(); }
+function compactNumber(value: number) { return Math.abs(value) >= 1000 ? `${Number((value/1000).toFixed(1))}K` : Number(value.toFixed(2)).toString(); }
 
 function pearson(a: number[], b: number[]): number {
   const n = Math.min(a.length, b.length);
