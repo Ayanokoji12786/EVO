@@ -22,6 +22,8 @@ import { SimulationRail, type RailTool } from './SimulationRail';
 import type { GodCategory } from '../GodMode/GodPanel';
 import { WorldAnalytics } from '../Analytics/WorldAnalytics';
 import { WorldInsights } from '../Insights/WorldInsights';
+import { ReferenceIcon } from '../shared/ReferenceIcon';
+import './EvolutionVision.css';
 
 type Modal = 'tree' | 'time' | 'experiment' | 'about' | 'cinematic' | 'analytics' | 'insights' | null;
 
@@ -212,7 +214,7 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
         )}
         {rainBrush && modal === null && !radialAnchor && <RainBrushPanel controller={controller} action={rainBrush} onChange={setPending} onAction={showDivineToast} />}
         {impact && <MeteorImpactReport impact={impact} />}
-        {evolutionVision && <EvolutionVision speciesCount={species.length} />}
+        {evolutionVision && modal === null && <EvolutionVision speciesCount={species.length} selectedName={inspector?.name ?? null} />}
         {divineToast && <div className="divine-toast">{divineToast}</div>}
 
         {modal === null && <CompassBiome controller={controller} tempC={worldTempC} />}
@@ -258,6 +260,6 @@ function MeteorImpactReport({ impact }: { impact: { before: number; after: numbe
   return <div className="meteor-aftermath"><div className="impact-population"><span>{impact.before.toLocaleString()}</span><i>→</i><strong>{impact.after.toLocaleString()}</strong></div><div className="impact-report"><b>MASS EXTINCTION EVENT</b><span>{impact.percent.toFixed(1)}% of life eliminated</span><small>{impact.extinctSpecies} species extinct · {impact.survivors} lineages surviving</small></div></div>;
 }
 
-function EvolutionVision({ speciesCount }: { speciesCount: number }) {
-  return <div className="evolution-vision" aria-live="polite"><div className="evolution-legend"><b>🧬 EVOLUTION VISION</b><span>GENETIC SIMILARITY FIELD · LAST 300 GENERATIONS</span></div><div className="evolution-branches"><i /><i /><i /></div>{speciesCount > 1 && <div className="speciation-detected"><b>SPECIATION DETECTED</b><span>one lineage has diverged into {speciesCount} living clusters</span></div>}</div>;
+function EvolutionVision({ speciesCount, selectedName }: { speciesCount: number; selectedName: string | null }) {
+  return <section className="evolution-vision" aria-label="Evolution Vision"><div className="evolution-field-card"><ReferenceIcon kind="evolution" size={25} /><div><h2>EVOLUTION VISION</h2><p>{selectedName ? `GENETIC DISTANCE · RELATIVE TO ${selectedName}` : 'CURRENT WORLD · HERITABLE TRAIT COLOURS'}</p></div><span>{speciesCount} living species</span>{selectedName ? <div className="evolution-distance-scale"><i /><small>Similar · 0</small><small>Distant · 1</small></div> : <small className="evolution-field-note">Select a creature to compare normalized genetic distance.<br />Without a selection, hues encode a weighted trait signature.</small>}</div></section>;
 }

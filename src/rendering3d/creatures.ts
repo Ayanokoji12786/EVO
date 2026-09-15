@@ -68,6 +68,7 @@ export class CreatureField {
   private color = new THREE.Color();
   private idToIndex = new Map<number, number>();
   private clock = { value: 0 };
+  private visionGlow = { value: 0 };
 
   constructor() {
     const geometry = buildCreatureGeometry();
@@ -81,6 +82,14 @@ export class CreatureField {
     material.bumpScale = 0.015;
     material.onBeforeCompile = shader => {
       shader.uniforms.creatureTime = this.clock;
+      shader.uniforms.evolutionGlow = this.visionGlow;
+      shader.fragmentShader = 'uniform float evolutionGlow;\n' + shader.fragmentShader;
+      shader.fragmentShader = shader.fragmentShader.replace('#include <emissivemap_fragment>', `
+        #include <emissivemap_fragment>
+        #ifdef USE_COLOR
+          totalEmissiveRadiance += vColor.rgb * evolutionGlow;
+        #endif
+      `);
       shader.vertexShader = 'uniform float creatureTime;\n' + shader.vertexShader;
       shader.vertexShader = shader.vertexShader.replace('#include <begin_vertex>', `
         #include <begin_vertex>
@@ -113,6 +122,7 @@ export class CreatureField {
   ) {
     this.idToIndex.clear();
     this.clock.value = options.tick;
+    this.visionGlow.value = options.evolutionVision ? 0.65 : 0;
     let i = 0;
     const selected = options.selectedId !== null ? world.organisms.get(options.selectedId) : undefined;
 
@@ -137,7 +147,7 @@ export class CreatureField {
       this.mesh.setMatrixAt(i, this.dummy.matrix);
 
       let hue: number;
-      if (options.evolutionVision) hue = genomeHue(org);
+      if (options.evolutionVision) hue = selected ? 190 + geneticDistance(selected.genome,org.genome) * 110 : genomeHue(org);
       else if (options.overlays.species) hue = hashHue(org.speciesId);
       else if (options.overlays.genetics && selected) hue = 220 - Math.min(1, geneticDistance(selected.genome, org.genome) * 2) * 220;
       else if (options.overlays.energy) hue = Math.max(0, Math.min(1, org.energy / org.maxEnergy)) * 110;
