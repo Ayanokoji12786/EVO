@@ -191,6 +191,7 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
         {godArrival && <GodArrival generation={useSimStore.getState().stats?.generation ?? 0} seed={useSimStore.getState().seedDisplay} />}
         {godMode && radialAnchor && !godArrival && (
           <GodPanel
+            key={godInitialLayer ?? 'root'}
             controller={controller}
             anchor={radialAnchor}
             initialLayer={godInitialLayer}
@@ -198,7 +199,7 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
             onAction={showDivineToast}
           />
         )}
-        {rainBrush && <RainBrushPanel action={rainBrush} onChange={setPending} />}
+        {rainBrush && modal === null && !radialAnchor && <RainBrushPanel controller={controller} action={rainBrush} onChange={setPending} onAction={showDivineToast} />}
         {impact && <MeteorImpactReport impact={impact} />}
         {evolutionVision && <EvolutionVision speciesCount={species.length} />}
         {divineToast && <div className="divine-toast">{divineToast}</div>}
@@ -236,9 +237,9 @@ function GodArrival({ generation, seed }: { generation: number; seed: string }) 
   return <div className="god-arrival" aria-live="polite"><div className="god-arrival-lines" /><div className="god-arrival-message"><span>DIVINE CONTROL ESTABLISHED</span><small>WORLD {seed || '7F3A'} · GENERATION {generation.toLocaleString()}</small></div></div>;
 }
 
-function RainBrushPanel({ action, onChange }: { action: Extract<PendingGodAction, { kind: 'rainfall' }>; onChange: (action: Extract<PendingGodAction, { kind: 'rainfall' }> | null) => void }) {
+function RainBrushPanel({ controller, action, onChange, onAction }: { controller: SimulationController; action: Extract<PendingGodAction, { kind: 'rainfall' }>; onChange: (action: Extract<PendingGodAction, { kind: 'rainfall' }> | null) => void; onAction: (message: string) => void }) {
   const field = (label: string, key: 'radius' | 'intensity' | 'duration', min: number, max: number, step: number, format: (v: number) => string) => <label className="rain-brush-field">{label}<b>{format(action[key])}</b><input type="range" min={min} max={max} step={step} value={action[key]} onChange={(e) => onChange({ ...action, [key]: Number(e.target.value) })} /></label>;
-  return <div className="rain-brush-panel hud-panel"><div className="rain-brush-title"><span>🌧</span><div><strong>RAINFALL</strong><small>PAINT THE WEATHER</small></div><button onClick={() => onChange(null)}>×</button></div>{field('Intensity', 'intensity', 0.2, 1, 0.02, (v) => `${Math.round(v * 100)}%`)}{field('Radius', 'radius', 45, 190, 5, (v) => `${v}m`)}{field('Duration', 'duration', 240, 1800, 60, (v) => `${Math.round(v / 60)} days`)}<p>Drag over the land to form clouds, gather water, and grow a living food field.</p></div>;
+  return <section className="rain-brush-panel hud-panel" aria-label="Rainfall tool"><div className="rain-brush-title"><span>☁</span><div><strong>RAINFALL TOOL</strong><small>INCREASE PRECIPITATION</small></div><button onClick={() => onChange(null)} aria-label="Close rainfall tool">×</button></div>{field('Intensity', 'intensity', 0.2, 1, 0.02, (v) => `${Math.round(v * 100)}%`)}{field('Radius', 'radius', 45, 190, 5, (v) => `${v} m`)}{field('Duration', 'duration', 240, 1800, 60, (v) => `${Math.round(v / 60)} days`)}<button className="rain-brush-apply" onClick={() => { const target = controller.targetTerrain(controller.camera.viewportW / 2, controller.camera.viewportH / 2); if (target) { controller.applyPendingGodAction(...target); onAction('Rainfall applied to the centre of your view.'); } else onAction('Move your view over the world to apply rainfall.'); }}>APPLY TO VIEW CENTRE　→</button><p>Click or drag on the world to paint rain in a selected area. Life responds over the following days.</p><div className="rain-brush-live"><span>WORLD RAINFALL</span><b>{controller.world.climate.rainfall.toFixed(2)}×</b></div></section>;
 }
 
 function MeteorImpactReport({ impact }: { impact: { before: number; after: number; eliminated: number; percent: number; extinctSpecies: number; survivors: number } }) {

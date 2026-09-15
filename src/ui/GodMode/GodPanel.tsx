@@ -3,6 +3,9 @@ import type { SimulationController } from '../../state/simulationController';
 import { useSimStore, type PendingGodAction } from '../../state/simStore';
 import type { TerrainType } from '../../simulation/types';
 import type { EvolutionaryPressureGoal } from '../../god/godActions';
+import worldAtlas from '../../assets/world-atlas.png';
+import { ReferenceIcon } from '../shared/ReferenceIcon';
+import './GodPanel.css';
 
 export type GodCategory = 'weather' | 'life' | 'evolution' | 'destruction' | 'terraform' | 'disease' | 'predators' | 'laws';
 type Category = GodCategory;
@@ -22,6 +25,7 @@ const WEATHER = [
   ['rain', '🌧', 'RAIN'], ['storm', '⛈', 'STORM'], ['drought', '☀', 'DROUGHT'],
   ['snow', '❄', 'SNOW'], ['heat', '🔥', 'HEAT WAVE'], ['ice', '🧊', 'ICE AGE'],
 ] as const;
+const WEATHER_ICONS: Record<string, string> = { rain: 'weather', storm: 'storm', drought: 'sun', snow: 'snow', heat: 'sun', ice: 'snow' };
 
 // Every option here reaches a real backend function — none of this is decorative. Most of
 // these (volcano/flood/wildfire/lightning, evolutionary pressure, law tuning) already
@@ -55,7 +59,7 @@ const LAWS = [
   ['capacity', '🌍', 'EXPAND CARRYING CAPACITY'],
 ] as const;
 
-export function GodPanel({ controller, anchor, initialLayer, onClose, onAction }: { controller: SimulationController; anchor: { x: number; y: number }; initialLayer?: Category | null; onClose: () => void; onAction?: (message: string) => void }) {
+export function GodPanel({ controller, initialLayer, onClose, onAction }: { controller: SimulationController; anchor: { x: number; y: number }; initialLayer?: Category | null; onClose: () => void; onAction?: (message: string) => void }) {
   const [layer, setLayer] = useState<Category | null>(initialLayer ?? null);
   const setPending = useSimStore((s) => s.setPendingGodAction);
   const stats = useSimStore((s) => s.stats);
@@ -129,12 +133,6 @@ export function GodPanel({ controller, anchor, initialLayer, onClose, onAction }
     finishInstant(`⚖️ A Law of Nature has been rewritten world-wide.`);
   };
 
-  const radius = 150;
-  const menuScale = Math.min(1, (window.innerWidth - 24) / 420, (window.innerHeight - 24) / 420);
-  const margin = 210 * menuScale;
-  const safeX = Math.max(margin, Math.min(window.innerWidth - margin, anchor.x));
-  const safeY = Math.max(margin, Math.min(window.innerHeight - margin, anchor.y));
-
   const sideList = layer === 'weather' ? { title: null, items: WEATHER.map(([id, icon, label]) => ({ id, icon, label })), onPick: (id: string) => weather(id as (typeof WEATHER)[number][0]) }
     : layer === 'destruction' ? { title: null, items: DESTRUCTION.map(([id, icon, label]) => ({ id, icon, label })), onPick: (id: string) => destruction(id as (typeof DESTRUCTION)[number][0]) }
     : layer === 'evolution' ? { title: null, items: EVOLUTION_PRESSURE.map((e) => ({ id: e.id, icon: e.icon, label: e.label })), onPick: (id: string) => evolution(id as EvolutionaryPressureGoal) }
@@ -142,43 +140,27 @@ export function GodPanel({ controller, anchor, initialLayer, onClose, onAction }
     : layer === 'predators' ? { title: null, items: PREDATORS.map(([id, icon, label]) => ({ id, icon, label })), onPick: (id: string) => predators(id as (typeof PREDATORS)[number][0]) }
     : null;
 
-  return (
-    <div className="god-radial-backdrop" onMouseDown={onClose}>
-      <div className="god-mode-heading" style={{ left: Math.max(24, safeX - 330 * menuScale), top: Math.max(88, safeY - 240 * menuScale) }}>
-        <b><span aria-hidden="true">⚡</span> GOD MODE</b>
-        <small>SHAPE. TEST. OBSERVE. REPEAT.</small>
-      </div>
-      <div className="god-radial" style={{ left: safeX, top: safeY, transform: `scale(${menuScale})` }} onMouseDown={(event) => event.stopPropagation()}>
-        <div className="god-radial-center">
-          <span>✦</span>
-        </div>
-        {ROOT_ACTIONS.map((item, index) => {
-          const angle = -Math.PI / 2 + (Math.PI * 2 * index) / ROOT_ACTIONS.length;
-          const x = Math.cos(angle) * radius;
-          const y = Math.sin(angle) * radius;
-          return (
-            <button
-              key={item.id}
-              className={`god-radial-action ${layer === item.id ? 'is-active' : ''}`}
-              style={{ transform: `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))` }}
-              onClick={() => choose(item.id)}
-              title={item.hint}
-            >
-              <span className="god-radial-icon">{item.icon}</span><span>{item.label}</span>
-            </button>
-          );
+  const ordered = ['weather', 'life', 'terraform', 'predators', 'laws', 'disease', 'destruction', 'evolution'].map((id) => ROOT_ACTIONS.find((item) => item.id === id)!);
+  const current = ROOT_ACTIONS.find((item) => item.id === layer);
+  return <section className={`reference-god${sideList ? ' has-layer' : ''}`} aria-label="God Mode" onMouseDown={onClose}>
+    <header className="reference-god-heading"><h1><span>ϟ</span> GOD MODE</h1><p>SHAPE. TEST. OBSERVE. REPEAT.</p></header>
+    <button className="reference-god-close" onClick={onClose} aria-label="Close God Mode">×</button>
+    <div className="reference-god-workspace" onMouseDown={(event) => event.stopPropagation()}>
+      <div className="reference-god-orbit">
+        <div className="reference-god-globe" style={{ backgroundImage: `url(${worldAtlas})` }}><span>WORLD {seed}</span></div>
+        {ordered.map((item, index) => {
+          const angle = -Math.PI / 2 + Math.PI * 2 * index / ordered.length;
+          return <button key={item.id} className={`reference-god-power power-${item.id}${layer === item.id ? ' is-active' : ''}`} style={{ left: `${50 + Math.cos(angle) * 36}%`, top: `${50 + Math.sin(angle) * 36}%` }} onClick={() => choose(item.id)} aria-pressed={layer === item.id} title={item.hint}>
+            <ReferenceIcon kind={item.id} size={32} /><strong>{item.label}</strong><small>{item.hint}</small>
+          </button>;
         })}
-        <div className="god-radial-status">WORLD {seed || '7F3A'} · GENERATION {(stats?.generation ?? 0).toLocaleString()}</div>
       </div>
-      {sideList && (
-        <div className="god-weather-list" style={{ left: safeX + 168 * menuScale, top: safeY - 108 * menuScale }} onMouseDown={(event) => event.stopPropagation()}>
-          {sideList.items.map((item) => (
-            <button key={item.id} onClick={() => sideList.onPick(item.id)}>
-              <span>{item.icon}</span>{item.label}
-            </button>
-          ))}
-        </div>
-      )}
+      {sideList && <nav className="reference-god-options" aria-label={`${current?.label} tools`}>
+        <span>{current?.label} TOOLS</span>
+        {sideList.items.map((item) => <button key={item.id} onClick={() => sideList.onPick(item.id)}><ReferenceIcon kind={layer === 'weather' ? WEATHER_ICONS[item.id] ?? 'weather' : layer ?? 'globe'} size={23} />{item.label}<i>→</i></button>)}
+      </nav>}
     </div>
-  );
+    <aside className="reference-god-context" onMouseDown={(event) => event.stopPropagation()}><span>CURRENT WORLD</span><h2>{current?.label ?? 'Laws of nature'}</h2><p>{current?.hint ?? 'A world of possibilities. Choose a force and observe how life responds.'}</p><dl><div><dt>Generation</dt><dd>{(stats?.generation ?? 0).toLocaleString()}</dd></div><div><dt>Living organisms</dt><dd>{(stats?.population ?? 0).toLocaleString()}</dd></div><div><dt>Rainfall</dt><dd>{controller.world.climate.rainfall.toFixed(2)}×</dd></div></dl><p className="reference-god-note">Every intervention changes the conditions for natural selection.</p></aside>
+    <blockquote className="reference-god-quote">“A little change can create a very different tomorrow.”<cite>— EVO</cite></blockquote>
+  </section>;
 }
