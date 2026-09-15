@@ -16,6 +16,15 @@ function baseConfig(overrides: Partial<WorldConfig> = {}): WorldConfig {
 }
 
 describe('deterministic seeded simulation', () => {
+  it('records climate values alongside the ecosystem history', () => {
+    const world = createWorld(baseConfig());
+    world.climate.rainfall = 1.8;
+    for (let tick = 0; tick < 60; tick++) stepWorld(world, 1);
+    const recorded = world.history.statHistory.at(-1);
+    expect(recorded?.rainfall).toBe(1.8);
+    expect(recorded?.temperatureC).toBeGreaterThanOrEqual(9);
+    expect(recorded?.temperatureC).toBeLessThanOrEqual(21);
+  });
   it('produces an identical trajectory for two worlds created from the same seed and config', () => {
     const worldA = createWorld(baseConfig());
     const worldB = createWorld(baseConfig());

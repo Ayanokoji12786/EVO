@@ -331,6 +331,8 @@ export function stepWorld(state: WorldState, dt: number) {
     const speciesCount = state.species.living().length;
     const prevStats = state.history.statHistory[state.history.statHistory.length - 1] ?? null;
     const stats = computeStats(livingNow, state.tick, state.births, state.deaths, state.food.items.size, speciesCount);
+    stats.temperatureC = 15 + state.climate.baseTemperature * 12 + (seasonalFactor(state.climate) - .5) * 12;
+    stats.rainfall = state.climate.rainfall;
     state.history.pushStats(stats);
     state.history.maybeSnapshot(state.tick, stats, livingNow);
     const newSpecies = state.species.all().filter((s) => s.originTick === state.tick);

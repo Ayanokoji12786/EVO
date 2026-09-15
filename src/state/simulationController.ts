@@ -112,12 +112,12 @@ export class SimulationController {
     const store = useSimStore.getState();
     const latestStats = this.world.history.statHistory[this.world.history.statHistory.length - 1];
     if (latestStats) {
-      store.pushStats(latestStats, this.world.history.statHistory, this.world.species.living());
+      store.pushStats(latestStats, [...this.world.history.statHistory], this.world.species.living());
     }
     const allEvents = this.world.events.all();
     if (allEvents.length !== this.lastEventCount) {
       this.lastEventCount = allEvents.length;
-      store.pushEvents(allEvents);
+      store.pushEvents([...allEvents]);
     }
     store.setDivineCounters(this.world.divineInterventions, this.world.naturalGenerations, this.world.interferedGenerations);
 

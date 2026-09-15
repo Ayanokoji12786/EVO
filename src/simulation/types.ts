@@ -147,6 +147,8 @@ export interface TrophicComposition {
 }
 
 export interface StatsSnapshot {
+  temperatureC?: number;
+  rainfall?: number;
   tick: number;
   generation: number;
   population: number;
