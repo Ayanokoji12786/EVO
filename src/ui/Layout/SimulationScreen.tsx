@@ -5,6 +5,7 @@ import { WorldCanvas } from './WorldCanvas';
 import { TopBar } from './TopBar';
 import { BottomTimeline } from './BottomTimeline';
 import { CreatureInspector } from '../Inspector/CreatureInspector';
+import { SelectionTether } from '../Inspector/SelectionTether';
 import { GodPanel } from '../GodMode/GodPanel';
 import { DeathToast } from './DeathToast';
 import { TreeOfLife } from '../TreeOfLife/TreeOfLife';
@@ -113,16 +114,7 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
     const targetX = focus?.x ?? startX;
     const targetY = focus?.y ?? startY;
     const targetZoom = Math.min(8, startZoom * 1.45);
-    const started = performance.now();
-    const animateCamera = (time: number) => {
-      const progress = Math.min(1, (time - started) / 780);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      controller.camera.x = startX + (targetX - startX) * eased;
-      controller.camera.y = startY + (targetY - startY) * eased;
-      controller.camera.zoom = startZoom + (targetZoom - startZoom) * eased;
-      if (progress < 1) revealRaf.current = requestAnimationFrame(animateCamera);
-    };
-    revealRaf.current = requestAnimationFrame(animateCamera);
+    controller.focusPoint(targetX, targetY, targetZoom, 780);
     setIntroComplete(true);
     setPaused(false);
   }, [controller, setPaused]);
@@ -250,6 +242,7 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
         {divineToast && <div className="divine-toast">{divineToast}</div>}
 
         {modal === null && <CompassBiome controller={controller} tempC={worldTempC} />}
+        {inspector && modal === null && <SelectionTether controller={controller} organismId={inspector.id} />}
         <BottomTimeline controller={controller} onOpen={() => openModal('time')} />
         {inspector && modal === null && <div className="creature-inspector-slot"><CreatureInspector controller={controller} onAction={showDivineToast} /></div>}
 

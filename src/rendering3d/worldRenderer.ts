@@ -25,7 +25,7 @@ export class WorldRenderer3D {
   private food: FoodField3D;
   private storms: StormField3D;
   private vegetation = new VegetationField();
-  private selectionRing: THREE.Mesh;
+  private selectionRings: THREE.Mesh[] = [];
   private visionCone: THREE.Mesh;
   private startTime = performance.now();
 
@@ -53,11 +53,22 @@ export class WorldRenderer3D {
     this.storms = new StormField3D();
     this.rig.scene.add(this.storms.group);
 
-    const ringGeo = new THREE.RingGeometry(0.85, 1, 32);
-    ringGeo.rotateX(-Math.PI / 2);
-    this.selectionRing = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85, side: THREE.DoubleSide }));
-    this.selectionRing.visible = false;
-    this.rig.scene.add(this.selectionRing);
+    for (let i = 0; i < 3; i++) {
+      const ringGeo = new THREE.RingGeometry(.88, 1, 48);
+      ringGeo.rotateX(-Math.PI / 2);
+      const ring = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({
+        color: i === 1 ? 0x8fffd2 : 0x77e7ff,
+        transparent: true,
+        opacity: .7,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+        blending: THREE.AdditiveBlending,
+      }));
+      ring.visible = false;
+      ring.renderOrder = 8 + i;
+      this.selectionRings.push(ring);
+      this.rig.scene.add(ring);
+    }
 
     const coneGeo = new THREE.ConeGeometry(1, 1, 24, 1, true);
     coneGeo.rotateX(Math.PI / 2);
@@ -122,15 +133,15 @@ export class WorldRenderer3D {
     this.food.update(world, camera.zoom);
     this.storms.update(world, timeSeconds);
 
-    this.updateSelectionMarkers(world, options);
+    this.updateSelectionMarkers(world, options, timeSeconds);
 
     this.renderer.render(this.rig.scene, camera.three);
   }
 
-  private updateSelectionMarkers(world: WorldState, options: Render3DOptions) {
+  private updateSelectionMarkers(world: WorldState, options: Render3DOptions, timeSeconds: number) {
     const org = options.selectedId !== null ? world.organisms.get(options.selectedId) : undefined;
     if (!org || !org.alive) {
-      this.selectionRing.visible = false;
+      this.selectionRings.forEach((ring) => { ring.visible = false; });
       this.visionCone.visible = false;
       return;
     }
@@ -138,9 +149,15 @@ export class WorldRenderer3D {
     const predatorScale = org.genome.traits.diet >= 0.62 ? 1.85 : org.genome.traits.diet >= 0.42 ? 1.2 : 1;
     const scale = Math.max(0.3, org.genome.traits.size) * (world.terrain.worldSize / 1400) * 6 * predatorScale;
 
-    this.selectionRing.visible = true;
-    this.selectionRing.position.set(org.x, groundY + 0.4, org.y);
-    this.selectionRing.scale.setScalar(scale * 1.6);
+    this.selectionRings.forEach((ring, index) => {
+      const phase = (timeSeconds * .62 + index / this.selectionRings.length) % 1;
+      const pulseScale = scale * (1.35 + phase * .82);
+      ring.visible = true;
+      ring.position.set(org.x, groundY + .34 + index * .035, org.y);
+      ring.scale.setScalar(pulseScale);
+      const material = ring.material as THREE.MeshBasicMaterial;
+      material.opacity = .62 * Math.pow(1 - phase, 1.35) + .08;
+    });
 
     const showCone = options.overlays.vision;
     this.visionCone.visible = showCone;

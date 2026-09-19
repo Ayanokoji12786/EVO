@@ -1,8 +1,301 @@
-.creature-inspector-slot { top:94px; right:20px; bottom:110px; }
-.creature-inspector-slot .hud-panel { width:min(365px,calc(100vw - 108px)) !important; max-height:calc(100vh - 210px) !important; padding:18px !important; border-color:#65c6e980; border-radius:9px; background:linear-gradient(145deg,#03151eee,#010a12f5); }
-.creature-inspector-header h2 { font-size:21px; font-weight:400; letter-spacing:1px; }.creature-inspector-header p { color:#96c3d7; font-size:13px; }.creature-diet { display:inline-block; margin-top:8px; color:#87da9a; font:8px var(--mono); letter-spacing:1.5px; }.creature-diet.is-predator { color:#ffc576; }
-.creature-specimen-frame { border-radius:4px; margin-bottom:16px; border:1px solid #53b7d522; }.creature-specimen-frame img { display:block; width:100%; aspect-ratio:2.15; object-fit:cover; }.creature-portrait-toggle { position:absolute; bottom:5px; left:7px; padding:3px 5px; border:0; color:#81b4c8; background:#031018cc; font:6px var(--mono); letter-spacing:.6px; cursor:pointer; }
-.creature-genome,.creature-mutations { border-top:1px solid #6bbfd52b; padding-top:14px; }.creature-section-title span { color:#64d4f2; font-size:10px; font-weight:400; letter-spacing:1.8px; }.creature-section-title button { border:0; padding:0; color:#68d0f0; background:transparent; font-size:9px; cursor:pointer; }
-.creature-trait { grid-template-columns:102px 1fr 38px; min-height:25px; color:#bed1dc; }.creature-trait i { height:6px; }.creature-trait i b,.creature-stat-bar b { background:linear-gradient(90deg,#287b9f,#73dfff); }.creature-trait strong { font:10px var(--mono); font-weight:400; text-align:right; }.creature-mutations p>b { color:#70e390; }.creature-mutations p>b.mutation-down { color:#f3927a; }.creature-mutations p small { color:#c8e6f2; font-variant-numeric:tabular-nums; }
-.creature-family { padding:8px 0 12px; border-top:1px solid #6bbfd52b; }.creature-family p { display:flex; justify-content:space-between; margin:9px 0; font:10px var(--mono); }.creature-family span { color:#7192a2; letter-spacing:1.2px; }.creature-family b { font-weight:400; color:#c0d8e3; }.creature-actions button { border-radius:5px; border-color:#66b7d455; }.creature-actions button:first-child,.creature-actions button.is-active,.creature-actions .creature-view-details { color:#dff5fe !important; border:1px solid #6bd5f5 !important; background:linear-gradient(100deg,#15537199,#0b283a99) !important; }
-@media(max-width:680px) { .creature-inspector-slot { top:112px; right:10px; }.creature-inspector-slot .hud-panel { max-height:calc(100vh - 200px) !important; }.creature-inspector-header h2 { font-size:17px; } }
+.creature-inspector-slot {
+  top: 72px;
+  right: 18px;
+  bottom: 56px;
+  align-items: flex-start;
+}
+
+.creature-inspector-slot::before {
+  content: "";
+  position: absolute;
+  top: 37%;
+  right: calc(100% - 2px);
+  width: 46px;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(110, 230, 255, .78));
+  box-shadow: 0 0 12px rgba(75, 211, 244, .5);
+}
+
+.creature-inspector-slot .hud-panel {
+  width: min(430px, calc(100vw - 106px)) !important;
+  max-height: calc(100vh - 130px) !important;
+  padding: 0 !important;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border: 0;
+  border-radius: 16px 4px 4px 16px;
+  background: linear-gradient(155deg, rgba(3, 19, 27, .9), rgba(1, 8, 14, .96));
+  box-shadow: -30px 30px 90px rgba(0, 0, 0, .52), inset 1px 0 rgba(114, 225, 246, .22);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(94, 205, 231, .28) transparent;
+  animation: creature-inspector-arrive .55s cubic-bezier(.16, .8, .2, 1) both;
+}
+
+.creature-specimen-hero {
+  position: relative;
+  isolation: isolate;
+  min-height: 304px;
+  margin: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 15px 3px 0 0;
+  background: #02090e;
+}
+
+.creature-specimen-hero canvas,
+.creature-specimen-hero img {
+  display: block;
+  width: 100%;
+  height: 304px;
+  object-fit: cover;
+  transform: scale(1.025);
+  filter: saturate(1.08) contrast(1.05);
+}
+
+.creature-specimen-hero img { object-position: center 48%; }
+
+.creature-specimen-shade {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgba(0, 8, 13, .15) 26%, rgba(1, 8, 13, .22) 48%, rgba(1, 8, 13, .96) 100%),
+    radial-gradient(circle at 55% 40%, transparent 25%, rgba(0, 5, 8, .36) 100%);
+}
+
+.creature-inspector-header {
+  position: absolute;
+  z-index: 2;
+  left: 22px;
+  right: 18px;
+  bottom: 31px;
+  display: block;
+  margin: 0;
+}
+
+.creature-selected-kicker {
+  display: block;
+  margin-bottom: 6px;
+  color: #79dff4;
+  font: 7px var(--mono);
+  letter-spacing: 2px;
+}
+
+.creature-inspector-header h2 {
+  margin: 0;
+  color: #f4fbff;
+  font-size: clamp(27px, 2.2vw, 36px);
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: 1px;
+  text-shadow: 0 2px 20px rgba(0, 0, 0, .8);
+}
+
+.creature-inspector-header p {
+  margin: 7px 0 0;
+  color: #b8d5df;
+  font-size: 13px;
+}
+
+.creature-inspector-header > small {
+  display: block;
+  margin-top: 9px;
+  color: rgba(191, 218, 227, .66);
+  font: 7px var(--mono);
+  letter-spacing: 1.1px;
+}
+
+.creature-protected-badge {
+  margin-left: 9px;
+  color: #8bffd0;
+  font-size: 13px;
+  vertical-align: middle;
+}
+
+.creature-diet {
+  display: inline-block;
+  margin: 8px 0 0 10px;
+  color: #8ff3b5;
+  font: 7px var(--mono);
+  letter-spacing: 1.5px;
+  vertical-align: 2px;
+}
+.creature-diet::before { content: "●"; margin-right: 5px; }
+.creature-diet.is-predator { color: #ffc477; text-shadow: 0 0 12px rgba(255, 159, 68, .5); }
+
+.creature-close {
+  position: absolute;
+  z-index: 4;
+  top: 13px;
+  right: 13px;
+  width: 31px;
+  height: 31px;
+  border: 0;
+  border-radius: 50%;
+  color: rgba(225, 244, 250, .86);
+  background: rgba(1, 10, 16, .54);
+  backdrop-filter: blur(8px);
+  font-size: 21px;
+  cursor: pointer;
+}
+
+.creature-portrait-toggle {
+  position: absolute;
+  z-index: 4;
+  right: 13px;
+  bottom: 12px;
+  padding: 4px 0;
+  border: 0;
+  color: rgba(139, 195, 213, .64);
+  background: transparent;
+  font: 6px var(--mono);
+  letter-spacing: .8px;
+  cursor: pointer;
+}
+
+.creature-specimen-hero > em {
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #ffad98;
+  background: rgba(26, 3, 6, .58);
+  font: 10px var(--mono);
+  font-style: normal;
+  letter-spacing: 1px;
+}
+
+.creature-primary-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  padding: 17px 20px 18px;
+  background: linear-gradient(90deg, rgba(7, 31, 39, .72), rgba(2, 17, 24, .46));
+}
+
+.creature-primary-metric {
+  min-width: 0;
+  padding: 0 16px;
+  border-left: 1px solid rgba(102, 204, 224, .12);
+}
+.creature-primary-metric:first-child { padding-left: 2px; border-left: 0; }
+.creature-primary-metric > span { display: block; color: rgba(136, 187, 202, .68); font: 7px var(--mono); letter-spacing: 1.6px; }
+.creature-primary-metric > b { display: block; margin-top: 4px; color: #effbff; font: 300 24px/1 var(--font); font-variant-numeric: tabular-nums; }
+.creature-primary-metric > small { display: block; margin-top: 5px; color: rgba(153, 184, 195, .62); font: 7px var(--font); }
+.creature-primary-metric.is-life > b { color: #a7f8c3; }
+.creature-primary-metric.is-danger > b { color: #ff9a81; }
+
+.creature-disclosures { padding: 2px 20px 0; }
+.creature-disclosure { border-bottom: 1px solid rgba(101, 195, 216, .12); }
+.creature-disclosure-trigger {
+  display: flex;
+  width: 100%;
+  min-height: 42px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0;
+  border: 0;
+  color: #72d7ee;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+.creature-disclosure-trigger > span { font: 9px var(--mono); letter-spacing: 1.7px; }
+.creature-disclosure-trigger small { margin-left: 10px; color: rgba(132, 170, 183, .54); font: 7px var(--font); letter-spacing: .1px; text-transform: none; }
+.creature-disclosure-trigger > b { color: rgba(185, 228, 239, .74); font-size: 17px; font-weight: 200; }
+.creature-disclosure-body { padding: 2px 0 16px; animation: creature-drawer-open .25s ease both; }
+
+.creature-genome { padding: 2px 0 0; border: 0; }
+.creature-trait { grid-template-columns: 108px 1fr 40px; min-height: 27px; color: #bed1dc; }
+.creature-trait i { height: 5px; }
+.creature-trait i b { background: linear-gradient(90deg, #287b9f, #73dfff); }
+.creature-trait strong { color: #d3ebf2; font: 9px var(--mono); font-weight: 400; text-align: right; }
+
+.creature-mutations { padding: 0; border: 0; }
+.creature-mutations p { margin: 8px 0; }
+.creature-mutations p > b { color: #70e390; }
+.creature-mutations p > b.mutation-down { color: #f3927a; }
+.creature-mutations p small { color: #c8e6f2; font-variant-numeric: tabular-nums; }
+
+.creature-family { padding: 0; border: 0; }
+.creature-family p { display: flex; justify-content: space-between; margin: 9px 0; font: 9px var(--mono); }
+.creature-family span { color: #7192a2; letter-spacing: 1.1px; }
+.creature-family b { color: #c0d8e3; font-weight: 400; }
+.creature-divine-actions { margin-top: 13px; }
+
+.creature-actions {
+  position: sticky;
+  bottom: 0;
+  display: flex;
+  gap: 7px;
+  padding: 14px 20px 18px;
+  background: linear-gradient(180deg, rgba(1, 9, 15, .72), #01090f 42%);
+}
+.creature-actions button {
+  min-height: 37px;
+  border: 1px solid rgba(102, 183, 212, .22);
+  border-radius: 999px;
+  color: #bcd3dd;
+  background: rgba(17, 59, 73, .16);
+}
+.creature-actions button:first-child,
+.creature-actions button.is-active,
+.creature-actions .creature-view-details {
+  color: #dff8ff !important;
+  border-color: rgba(107, 213, 245, .58) !important;
+  background: linear-gradient(100deg, rgba(21, 83, 113, .58), rgba(11, 40, 58, .42)) !important;
+}
+
+.selection-tether {
+  position: absolute;
+  z-index: 16;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+.selection-tether-path-back { fill: none; stroke: rgba(7, 27, 36, .82); stroke-width: 5; }
+.selection-tether-path { fill: none; stroke: url(#selection-tether-gradient); stroke-width: 1.15; filter: drop-shadow(0 0 5px rgba(86, 224, 255, .58)); stroke-dasharray: 4 7; animation: selection-tether-flow 1.3s linear infinite; }
+.selection-tether-node { fill: #d7fbff; stroke: rgba(86, 224, 255, .45); stroke-width: 6; filter: drop-shadow(0 0 8px #5ee4ff); }
+
+@keyframes creature-inspector-arrive {
+  from { opacity: 0; transform: translateX(34px) scale(.985); }
+  to { opacity: 1; transform: translateX(0) scale(1); }
+}
+@keyframes creature-drawer-open { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes selection-tether-flow { to { stroke-dashoffset: -22; } }
+
+@media (max-width:780px) {
+  .selection-tether { display: none; }
+  .creature-inspector-slot {
+    top: auto;
+    right: 8px;
+    left: 68px;
+    bottom: 48px;
+    align-items: flex-end;
+  }
+  .creature-inspector-slot::before { display: none; }
+  .creature-inspector-slot .hud-panel {
+    width: 100% !important;
+    max-height: min(74vh, 620px) !important;
+    border-radius: 16px 16px 3px 3px;
+  }
+  .creature-specimen-hero,
+  .creature-specimen-hero canvas,
+  .creature-specimen-hero img { min-height: 250px; height: 250px; }
+  .creature-inspector-header h2 { font-size: 26px; }
+}
+
+@media (max-width:520px) {
+  .creature-inspector-slot { left: 56px; right: 4px; }
+  .creature-primary-metric { padding-inline: 10px; }
+  .creature-primary-metric > b { font-size: 20px; }
+  .creature-disclosures,
+  .creature-actions { padding-inline: 14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .selection-tether-path { animation: none; }
+}

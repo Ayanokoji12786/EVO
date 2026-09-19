@@ -21,6 +21,16 @@ export class SimulationController {
   private lastStatsPush = 0;
   private lastEventCount = 0;
   private destroyed = false;
+  private cameraFlight: {
+    fromX: number;
+    fromY: number;
+    fromZoom: number;
+    toX: number;
+    toY: number;
+    toZoom: number;
+    startedAt: number;
+    duration: number;
+  } | null = null;
 
   constructor(config: WorldConfig) {
     this.world = createWorld(config);
@@ -71,6 +81,8 @@ export class SimulationController {
         this.maybePushStats(time);
       }
 
+      this.updateCameraFlight(time);
+
       this.render();
     } catch (err) {
       console.error('[EVO] simulation loop crashed:', err);
@@ -106,6 +118,17 @@ export class SimulationController {
     this.camera.y += (org.y - this.camera.y) * 0.1;
   }
 
+  private updateCameraFlight(time: number) {
+    if (!this.cameraFlight) return;
+    const flight = this.cameraFlight;
+    const progress = Math.min(1, Math.max(0, (time - flight.startedAt) / flight.duration));
+    const eased = progress < .5 ? 4 * progress * progress * progress : 1 - Math.pow(-2 * progress + 2, 3) / 2;
+    this.camera.x = flight.fromX + (flight.toX - flight.fromX) * eased;
+    this.camera.y = flight.fromY + (flight.toY - flight.fromY) * eased;
+    this.camera.zoom = flight.fromZoom + (flight.toZoom - flight.fromZoom) * eased;
+    if (progress >= 1) this.cameraFlight = null;
+  }
+
   private maybePushStats(time: number) {
     if (time - this.lastStatsPush < STATS_PUSH_INTERVAL_MS) return;
     this.lastStatsPush = time;
@@ -139,6 +162,10 @@ export class SimulationController {
 
   private render() {
     if (!this.renderer3d) return;
+    // A few cinematic paths update the lightweight logical camera directly. Syncing once
+    // per rendered frame keeps Three's perspective camera perfectly aligned while those
+    // eased flights are in progress (and while following a moving organism).
+    syncCamera(this.camera);
     const store = useSimStore.getState();
     const ancestryRoot = store.overlays.ancestry;
     this.renderer3d.draw(this.camera, this.world, {
@@ -152,10 +179,12 @@ export class SimulationController {
   // --- Interaction ---
 
   pan(dx: number, dy: number) {
+    this.cameraFlight = null;
     this.follow(null);
     panCamera(this.camera, dx, dy);
   }
   zoom(factor: number, sx?: number, sy?: number) {
+    this.cameraFlight = null;
     zoomCamera(this.camera, factor, sx, sy);
     if (this.camera.zoom <= worldFitZoom(this.camera) + .0001) this.follow(null);
   }
@@ -187,11 +216,36 @@ export class SimulationController {
     }
     const org = this.world.organisms.get(orgId);
     if (org) {
-      // Selection focuses the observatory on an organism, but following is an explicit
-      // cinematic mode chosen from the inspector rather than an unexpected camera lock.
       this.follow(null);
       useSimStore.getState().setInspector(this.buildInspectorData(org));
+      this.focusPoint(org.x, org.y, Math.min(8, Math.max(this.camera.zoom * 1.2, this.camera.zoom + .08)), 720);
     }
+  }
+
+  /** Eases the observatory camera to a world-space subject without enabling follow mode. */
+  focusPoint(x: number, y: number, zoom = this.camera.zoom, duration = 700) {
+    this.cameraFlight = {
+      fromX: this.camera.x,
+      fromY: this.camera.y,
+      fromZoom: this.camera.zoom,
+      toX: x,
+      toY: y,
+      toZoom: Math.max(worldFitZoom(this.camera), Math.min(8, zoom)),
+      startedAt: performance.now(),
+      duration: Math.max(1, duration),
+    };
+  }
+
+  /** Live projected anchor used by the selection tether; null means offscreen/deceased. */
+  organismScreenPoint(orgId: number): { x: number; y: number } | null {
+    const org = this.world.organisms.get(orgId);
+    if (!org || !org.alive || !isWithinWorldDisc(this.world.config.worldSize, org.x, org.y, 5)) return null;
+    const groundY = elevationAtWorld(this.world.terrain, org.x, org.y);
+    const predatorScale = org.genome.traits.diet >= .62 ? 1.85 : org.genome.traits.diet >= .42 ? 1.2 : 1;
+    const subjectHeight = Math.max(.3, org.genome.traits.size) * (this.world.terrain.worldSize / 1400) * 7 * predatorScale;
+    const [x, y] = worldToScreen(this.camera, org.x, org.y, groundY + subjectHeight);
+    if (x < -24 || y < -24 || x > this.camera.viewportW + 24 || y > this.camera.viewportH + 24) return null;
+    return { x, y };
   }
 
   follow(orgId: number | null) {
