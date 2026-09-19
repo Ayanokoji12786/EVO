@@ -6,7 +6,7 @@ import { useSimStore } from '../../state/simStore';
 import specimenPortrait from '../../assets/specimen-portrait.png';
 import './TreeOfLife.css';
 
-type Point = { x: number; y: number; angle: number; radius: number; depth: number };
+type Point = { x: number; y: number; angle: number; radius: number; depth: number; z: number };
 const hue = (id: number) => (id * 137.508 + 178) % 360;
 const CENTER = { x: 505, y: 360 };
 
@@ -20,7 +20,7 @@ function buildMilestones(events: HistoryEvent[], currentGeneration: number): Mil
     { re: /predator|carnivore/i, label: 'First Predator Emerges', color: '#e8b34d' },
     { re: /drought/i, label: 'Great Drought', color: '#e8b34d' },
     { re: /mass extinction|great dying/i, label: 'Mass Extinction', color: '#e05f5f' },
-    { re: /radiation|speciation|new species/i, label: 'Northern Radiation', color: '#5b9fe0' },
+    { re: /radiation|speciation|new species/i, label: 'Speciation', color: '#5b9fe0' },
     { re: /flight|wing|aerial/i, label: 'Flight Evolves', color: '#e8b34d' },
     { re: /volcano|meteor|wildfire/i, label: 'Second Extinction', color: '#e05f5f' },
   ];
@@ -39,16 +39,28 @@ export function TreeOfLife({ controller, onClose }: { controller: SimulationCont
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [view, setView] = useState({ x: 0, y: 0, zoom: 1 });
   const [highlightFamily, setHighlightFamily] = useState(false);
-  useSimStore((state) => state.species);
+  const speciesSnapshot = useSimStore((state) => state.species);
   const events = useSimStore((state) => state.events);
   const stats = useSimStore((state) => state.stats);
   const drag = useRef({ active: false, x: 0, y: 0 });
-  const species = [...controller.world.species.all()].sort((a, b) => a.originTick - b.originTick || a.id - b.id);
+  const species = useMemo(
+    () => {
+      // The store snapshot is the reactive signal; the registry remains the source of
+      // truth because it also retains extinct lineages that the living snapshot omits.
+      const livingSnapshotSize = speciesSnapshot.length;
+      const all = [...controller.world.species.all()];
+      if (livingSnapshotSize > all.length) return [...speciesSnapshot].sort((a, b) => a.originTick - b.originTick || a.id - b.id);
+      return all.sort((a, b) => a.originTick - b.originTick || a.id - b.id);
+    },
+    [controller, speciesSnapshot],
+  );
   const positions = useMemo(() => radialPositions(species), [species]);
   const selected = selectedId === null ? null : controller.world.species.get(selectedId);
   const parent = selected?.parentSpeciesId === null || selected?.parentSpeciesId === undefined ? null : controller.world.species.get(selected.parentSpeciesId);
   const descendants = selected ? species.filter((s) => s.parentSpeciesId === selected.id).length : 0;
   const living = species.filter((item) => item.extinctTick === null);
+  const sparse = species.length <= 2;
+  const featuredIds = new Set([...living].sort((a, b) => b.population - a.population).slice(0, 2).map((item) => item.id));
   const extinct = species.length - living.length;
   const scars = controller.world.events.all().filter((event) => /mass extinction|meteor|wildfire|plague|ice age/i.test(event.message));
   const radiations = controller.world.events.all().filter((event) => /radiation|speciation/i.test(event.message)).length;
@@ -71,7 +83,7 @@ export function TreeOfLife({ controller, onClose }: { controller: SimulationCont
     setHighlightFamily(false);
   };
 
-  return <section className="tree-galaxy" aria-label="Tree of Life">
+  return <section className={`tree-galaxy${sparse ? ' is-sparse' : ''}`} aria-label="Tree of Life">
     <button className="tree-close" onClick={onClose} aria-label="Close Tree of Life">×</button>
 
     <div className="tree-heading">
@@ -102,7 +114,10 @@ export function TreeOfLife({ controller, onClose }: { controller: SimulationCont
       <svg viewBox="0 0 1010 720" role="img" aria-label="Radial phylogenetic tree showing living and extinct species">
         <defs>
           <radialGradient id="treeNebula"><stop stopColor="#172848" stopOpacity=".68" /><stop offset=".54" stopColor="#090f23" stopOpacity=".56" /><stop offset="1" stopColor="#03060e" stopOpacity="0" /></radialGradient>
+          <radialGradient id="ancestorCore" cx="35%" cy="28%"><stop stopColor="#efffff" /><stop offset=".12" stopColor="#86ebff" /><stop offset=".42" stopColor="#216792" /><stop offset=".76" stopColor="#0d2346" /><stop offset="1" stopColor="#050816" /></radialGradient>
+          <radialGradient id="ancestorHalo"><stop stopColor="#8cf2ff" stopOpacity=".42" /><stop offset=".38" stopColor="#5a8cff" stopOpacity=".17" /><stop offset="1" stopColor="#6948ff" stopOpacity="0" /></radialGradient>
           <filter id="treeGlow" filterUnits="userSpaceOnUse" x="-450" y="-450" width="900" height="900"><feGaussianBlur stdDeviation="3" result="blur" /><feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
+          <filter id="ancestorGlow" filterUnits="userSpaceOnUse" x="-180" y="-180" width="360" height="360"><feGaussianBlur stdDeviation="10" result="blur" /><feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
           <pattern id="treeStars" width="89" height="89" patternUnits="userSpaceOnUse"><circle cx="11" cy="19" r=".65" fill="#daeaff" /><circle cx="61" cy="22" r=".5" fill="#85b3e8" /><circle cx="36" cy="70" r=".72" fill="#96f5df" /></pattern>
         </defs>
         <rect width="1010" height="720" fill="url(#treeStars)" />
@@ -110,9 +125,15 @@ export function TreeOfLife({ controller, onClose }: { controller: SimulationCont
         <g transform={`translate(${CENTER.x + view.x} ${CENTER.y + view.y}) scale(${view.zoom})`}>
           {scars.map((event, index) => <circle key={event.id} cx="0" cy="0" r={100 + index * 58} fill="none" stroke="#ff816e" strokeOpacity=".2" strokeWidth="1" strokeDasharray="3 7" />)}
           {[100, 180, 260].map((radius) => <circle key={radius} cx="0" cy="0" r={radius} fill="none" stroke="rgba(156,191,227,.1)" strokeWidth="1" strokeDasharray="2 10" />)}
-          {species.map((item) => <Lineage key={item.id} item={item} positions={positions} selected={selectedId} family={family} onSelect={() => focus(item.id)} />)}
-          <circle cx="0" cy="0" r="50" fill="#04141fe8" stroke="#7fddf6" strokeOpacity=".65" filter="url(#treeGlow)" />
-          <circle cx="0" cy="-40" r="4" fill="#a8f2ff" filter="url(#treeGlow)" />
+          {species.map((item) => <Lineage key={item.id} item={item} positions={positions} selected={selectedId} family={family} sparse={sparse} featured={featuredIds.has(item.id)} animateCurrent={species.length <= 150} onSelect={() => focus(item.id)} />)}
+          <g className="tree-ancestor" data-sparse={sparse ? 'true' : 'false'}>
+            <circle className="tree-ancestor-halo" cx="0" cy="0" r={sparse ? 104 : 78} fill="url(#ancestorHalo)" />
+            <ellipse className="tree-ancestor-orbit orbit-one" cx="0" cy="0" rx={sparse ? 91 : 69} ry={sparse ? 35 : 28} fill="none" />
+            <ellipse className="tree-ancestor-orbit orbit-two" cx="0" cy="0" rx={sparse ? 53 : 42} ry={sparse ? 88 : 68} fill="none" transform="rotate(28)" />
+            <circle className="tree-ancestor-shell" cx="0" cy="0" r={sparse ? 68 : 50} fill="url(#ancestorCore)" filter="url(#ancestorGlow)" />
+            <path className="tree-ancestor-shine" d={sparse ? 'M-34 -34 Q0 -63 36 -30' : 'M-26 -26 Q0 -47 28 -23'} fill="none" />
+            <circle cx="0" cy={sparse ? -55 : -40} r={sparse ? 5 : 4} fill="#d8fbff" filter="url(#treeGlow)" />
+          </g>
           <text x="0" y="-7" fill="#e2f8ff" fontSize="11" textAnchor="middle" letterSpacing="1.3">COMMON</text>
           <text x="0" y="9" fill="#e2f8ff" fontSize="11" textAnchor="middle" letterSpacing="1.3">ANCESTOR</text>
           <text x="0" y="28" fill="#849faa" fontSize="9" textAnchor="middle">Gen 0</text>
@@ -177,12 +198,20 @@ export function TreeOfLife({ controller, onClose }: { controller: SimulationCont
 function radialPositions(species: SpeciesRecord[]) {
   const output = new Map<number, Point>();
   const byId = new Map(species.map((item) => [item.id, item]));
+  const childrenByParent = new Map<number, SpeciesRecord[]>();
+  for (const item of species) {
+    if (item.parentSpeciesId === null) continue;
+    const list = childrenByParent.get(item.parentSpeciesId) ?? [];
+    list.push(item);
+    childrenByParent.set(item.parentSpeciesId, list);
+  }
+  const sparse = species.length <= 2;
   const depthFor = (item: SpeciesRecord, seen = new Set<number>()): number => {
     if (item.parentSpeciesId === null || seen.has(item.id)) return 1;
     const parent = byId.get(item.parentSpeciesId);
     return parent ? depthFor(parent, new Set([...seen, item.id])) + 1 : 1;
   };
-  const children = (id: number) => species.filter((item) => item.parentSpeciesId === id);
+  const children = (id: number) => childrenByParent.get(id) ?? [];
   const roots = species.filter((item) => item.parentSpeciesId === null || !byId.has(item.parentSpeciesId));
   const leafCount = (item: SpeciesRecord, seen = new Set<number>()): number => {
     if (seen.has(item.id)) return 1;
@@ -194,35 +223,59 @@ function radialPositions(species: SpeciesRecord[]) {
     if (seen.has(item.id)) return;
     const angle = (start + end) / 2;
     const depth = depthFor(item);
-    const radius = 100 + depth / maxDepth * 180;
-    output.set(item.id, { angle, radius, depth, x: Math.cos(angle) * radius, y: Math.sin(angle) * radius });
+    const radius = sparse ? 224 + (depth - 1) * 72 : 84 + depth / maxDepth * 205;
+    const z = ((item.id * 17 + depth * 11) % 9) / 8;
+    output.set(item.id, { angle, radius, depth, z, x: Math.cos(angle) * radius, y: Math.sin(angle) * radius });
     const branches = children(item.id); const count = branches.reduce((sum, child) => sum + leafCount(child), 0); let cursor = start;
     branches.forEach((child) => { const next = cursor + (end - start) * leafCount(child) / count; place(child, cursor, next, new Set([...seen,item.id])); cursor = next; });
   };
+  if (sparse && roots.length) {
+    const sparseAngles = roots.length === 1 ? [-Math.PI / 2] : [-Math.PI * .76, Math.PI * .24];
+    roots.forEach((item, index) => {
+      const angle = sparseAngles[index] ?? -Math.PI / 2 + index * Math.PI;
+      place(item, angle - .24, angle + .24);
+    });
+    return output;
+  }
   const total = roots.reduce((sum, item) => sum + leafCount(item), 0); let angle = -Math.PI;
-  roots.forEach((item) => { const end = angle + Math.PI * 2 * leafCount(item) / Math.max(1,total); place(item, angle, end); angle = end; });
+  roots.forEach((item) => { const end = angle + Math.PI * 2 * leafCount(item) / Math.max(1, total); place(item, angle, end); angle = end; });
   return output;
 }
 
-function Lineage({ item, positions, selected, family, onSelect }: { item: SpeciesRecord; positions: Map<number, Point>; selected: number | null; family: Set<number> | null; onSelect: () => void }) {
+function Lineage({ item, positions, selected, family, sparse, featured, animateCurrent, onSelect }: { item: SpeciesRecord; positions: Map<number, Point>; selected: number | null; family: Set<number> | null; sparse: boolean; featured: boolean; animateCurrent: boolean; onSelect: () => void }) {
   const point = positions.get(item.id);
   if (!point) return null;
   const parent = item.parentSpeciesId === null ? undefined : positions.get(item.parentSpeciesId);
-  const parentPoint = parent ?? { x: 0, y: 0, angle: point.angle, radius: 0 };
+  const parentPoint = parent ?? { x: 0, y: 0, angle: point.angle, radius: 0, depth: 0, z: .5 };
   const alive = item.extinctTick === null;
   const isSelected = selected === item.id;
   const focus = family === null || family.has(item.id);
   const color = isSelected ? '#e8b34d' : `hsl(${hue(item.id)}, ${alive ? 79 : 25}%, ${alive ? 66 : 48}%)`;
-  const control = Math.max(40, (point.radius - parentPoint.radius) * .72);
-  const cx1 = parentPoint.x + Math.cos(point.angle) * control;
-  const cy1 = parentPoint.y + Math.sin(point.angle) * control;
-  const cx2 = point.x - Math.cos(point.angle) * control * .42;
-  const cy2 = point.y - Math.sin(point.angle) * control * .42;
+  const dx = point.x - parentPoint.x;
+  const dy = point.y - parentPoint.y;
+  const length = Math.max(1, Math.hypot(dx, dy));
+  const normalX = -dy / length;
+  const normalY = dx / length;
+  const bendSign = ((item.id + point.depth) % 2 === 0 ? 1 : -1);
+  const bend = bendSign * (sparse ? 74 : Math.min(58, 19 + point.depth * 9));
+  const cx1 = parentPoint.x + dx * .34 + normalX * bend;
+  const cy1 = parentPoint.y + dy * .34 + normalY * bend;
+  const cx2 = parentPoint.x + dx * .73 + normalX * bend * .62;
+  const cy2 = parentPoint.y + dy * .73 + normalY * bend * .62;
+  const path = `M${parentPoint.x} ${parentPoint.y} C${cx1} ${cy1}, ${cx2} ${cy2}, ${point.x} ${point.y}`;
+  const depthOpacity = .5 + point.z * .5;
+  const baseWidth = (alive ? 1.55 : .8) + point.z * (alive ? 1.45 : .55) + (isSelected ? 1.5 : 0);
+  const portraitWidth = sparse ? 126 : (featured || isSelected ? 90 : 54);
+  const portraitHeight = sparse ? 64 : (featured || isSelected ? 45 : 27);
+  const showPortrait = alive && (sparse || featured || isSelected);
   return <g opacity={focus ? 1 : .16} className="tree-lineage" role="button" tabIndex={0} aria-label={`Inspect lineage ${item.name}`} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelect(); } }}>
-    <path d={`M${parentPoint.x} ${parentPoint.y} C${cx1} ${cy1}, ${cx2} ${cy2}, ${point.x} ${point.y}`} fill="none" stroke={color} strokeWidth={alive ? 2.1 : 1.1} strokeDasharray={alive ? undefined : '3 4'} filter={alive ? 'url(#treeGlow)' : undefined} onClick={onSelect} />
-    <circle cx={point.x} cy={point.y} r={alive ? 5.5 : 3.3} fill={color} filter={alive ? 'url(#treeGlow)' : undefined} onClick={onSelect} />
-    {alive && <image href={specimenPortrait} x={point.x - 31} y={point.y - 32} width="62" height="30" preserveAspectRatio="xMidYMid meet" style={{ filter:`hue-rotate(${hue(item.id) - 178}deg)` }} onClick={onSelect} />}
-    {(isSelected || alive) && <text x={point.x} y={point.y + 23} fill={alive ? '#e9f8ff' : '#8995a8'} fontSize="9" textAnchor="middle" onClick={onSelect}>{item.name}</text>}
+    <path className="tree-lineage-aura" d={path} fill="none" stroke={color} strokeWidth={baseWidth * 6} strokeOpacity={alive ? .12 * depthOpacity : .035} style={{ filter: `blur(${(1 - point.z) * 1.2 + .3}px)` }} />
+    <path className="tree-lineage-branch" d={path} fill="none" stroke={color} strokeWidth={baseWidth} strokeOpacity={depthOpacity} strokeDasharray={alive ? undefined : '3 5'} filter={alive ? 'url(#treeGlow)' : undefined} onClick={onSelect} />
+    {alive && animateCurrent && <path className="tree-lineage-current" d={path} pathLength="100" fill="none" stroke="#dcffff" strokeWidth={Math.max(.65, baseWidth * .32)} strokeOpacity={.78 * depthOpacity} />}
+    <circle className="tree-lineage-node-halo" cx={point.x} cy={point.y} r={(sparse ? 17 : 9) + point.z * 4} fill="none" stroke={color} strokeOpacity={.18 + point.z * .2} />
+    <circle cx={point.x} cy={point.y} r={sparse ? 9 : alive ? 5 + point.z * 2 : 3.3} fill={color} filter={alive ? 'url(#treeGlow)' : undefined} onClick={onSelect} />
+    {showPortrait && <image href={specimenPortrait} x={point.x - portraitWidth / 2} y={point.y - portraitHeight - (sparse ? 18 : 11)} width={portraitWidth} height={portraitHeight} preserveAspectRatio="xMidYMid meet" style={{ filter:`hue-rotate(${hue(item.id) - 178}deg) drop-shadow(0 0 ${sparse ? 12 : 7}px ${color})` }} onClick={onSelect} />}
+    {(isSelected || sparse || featured) && <text x={point.x} y={point.y + (sparse ? 34 : 23)} fill={alive ? '#e9f8ff' : '#8995a8'} fontSize={sparse ? 13 : 9} textAnchor="middle" letterSpacing={sparse ? 1 : 0} onClick={onSelect}>{item.name}</text>}
   </g>;
 }
 

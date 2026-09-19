@@ -1,6 +1,187 @@
-.tree-galaxy { background:radial-gradient(ellipse at 52% 50%,#052436 0,#010c15 54%,#00070d 100%); }.tree-heading { top:94px; left:112px; width:220px; }.tree-heading h1 { font-size:24px; font-weight:300; letter-spacing:5px; }.tree-heading p { color:#7edcf7; font:9px var(--font); letter-spacing:2px; }.tree-legend { flex-direction:column; gap:16px; margin-top:24px; }.tree-reset { margin-top:24px; padding:8px 10px; border:1px solid #68bad144; border-radius:4px; background:#08233377; color:#81c3d8; font:8px var(--mono); cursor:pointer; }
-.tree-radial-canvas { left:300px; right:285px; top:58px; bottom:92px; }.tree-radial-canvas svg { overflow:visible; }.tree-radial-help { bottom:2px; color:#629eb5; font-size:7px; }.tree-overview-card { left:112px; width:215px; bottom:120px; padding:18px; border-color:#57b9d360; border-radius:8px; background:#03141edd; }.tree-overview-card>b,.tree-lineage-head b,.tree-milestones>b { color:#67d6f3; font-weight:400; font-size:9px; letter-spacing:1.6px; }.tree-overview-grid strong,.tree-overview-big strong { font-weight:300; font-size:23px; }.tree-overview-grid span,.tree-overview-big span { color:#aac2ce; }
-.tree-lineage-card { top:94px; right:20px; width:270px; bottom:120px; padding:18px; border-color:#63c5e977; border-radius:8px; background:linear-gradient(145deg,#031b28ef,#010b13ef); }.tree-lineage-portrait { height:108px; background:transparent; }.tree-lineage-portrait img { width:100%; height:100%; object-fit:contain; }.tree-lineage-card h2 { font-weight:400; }.tree-row span { color:#aec5d1; }.tree-row b { color:#e0f4fc; }.tree-lineage-actions button { border-color:#5dbcd555; border-radius:4px; font-size:9px; }.tree-lineage-actions button.primary { color:#e4f7ff; border:1px solid #69d4f4; background:linear-gradient(100deg,#15597899,#0a2b3e99); }.tree-lineage-actions button:disabled { opacity:.4; cursor:not-allowed; }.tree-lineage-actions button[aria-pressed=true] { border-color:#ffc977; }.tree-quote { color:#c9dee8; font:italic 14px/1.6 Georgia,serif; }.tree-lineage:focus { outline:none; }.tree-lineage:focus path { stroke-width:5; }
-@media(min-width:1500px) { .tree-radial-canvas { left:325px; right:340px; }.tree-lineage-card { width:320px; }.tree-overview-card { width:240px; } }
-@media(max-width:1000px) { .tree-radial-canvas { left:100px; right:245px; top:140px; }.tree-heading { width:auto; }.tree-legend { flex-direction:row; gap:10px; }.tree-legend li { font-size:8px; }.tree-reset { display:none; }.tree-lineage-card { width:230px; top:190px; }.tree-overview-card { display:none; } }
-@media(max-width:680px) { .tree-galaxy { overflow:auto; }.tree-heading { left:76px; top:76px; }.tree-heading h1 { font-size:18px; }.tree-heading p { font-size:7px; }.tree-legend { gap:7px; }.tree-legend li { font-size:6px; }.tree-radial-canvas { position:relative; left:70px; right:auto; top:160px; bottom:auto; width:calc(100% - 80px); height:300px; }.tree-lineage-card { position:relative; left:70px; right:auto; top:180px; bottom:auto; width:calc(100% - 80px); margin-bottom:300px; }.tree-close { top:76px; }.tree-radial-help { white-space:normal; text-align:center; } }
+.tree-galaxy {
+  background:
+    radial-gradient(ellipse at 53% 46%, rgba(13, 52, 83, .86) 0, rgba(3, 18, 34, .96) 43%, #000710 76%, #00040a 100%);
+  animation: tree-galaxy-arrive .72s ease-out both;
+}
+
+.tree-galaxy::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 51% 48%, transparent 15%, rgba(6, 10, 30, .18) 50%, rgba(0, 2, 8, .75) 100%),
+    linear-gradient(90deg, rgba(0, 5, 12, .72), transparent 28%, transparent 72%, rgba(0, 5, 12, .75));
+  animation: tree-veil-arrive 1s ease-out both;
+}
+
+.tree-close {
+  z-index: 8;
+  top: 72px;
+  right: 18px;
+  border: 0;
+  background: rgba(4, 16, 27, .45);
+  backdrop-filter: blur(8px);
+}
+
+.tree-heading {
+  top: 86px;
+  left: 94px;
+  width: 310px;
+  animation: tree-panel-arrive .55s .24s ease-out backwards;
+}
+.tree-heading h1 { font-size: clamp(24px, 2.2vw, 36px); font-weight: 200; letter-spacing: 6px; white-space: nowrap; }
+.tree-heading p { color: #7edcf7; font: 8px var(--font); letter-spacing: 2.5px; }
+.tree-legend { flex-direction: column; gap: 14px; margin-top: 28px; }
+.tree-legend li { color: rgba(190, 216, 228, .76); font-size: 9px; }
+.tree-legend i { box-shadow: 0 0 10px currentColor; }
+.tree-reset {
+  margin-top: 24px;
+  padding: 8px 0;
+  border: 0;
+  color: rgba(129, 195, 216, .68);
+  background: transparent;
+  font: 7px var(--mono);
+  letter-spacing: 1px;
+  cursor: pointer;
+}
+
+.tree-radial-canvas {
+  left: 244px;
+  right: 276px;
+  top: 58px;
+  bottom: 48px;
+  animation: tree-canvas-arrive 1.05s .08s cubic-bezier(.16, .8, .2, 1) backwards;
+}
+.tree-radial-canvas svg { overflow: visible; }
+.tree-radial-help { bottom: 3px; color: rgba(98, 158, 181, .62); font-size: 6px; letter-spacing: 1.5px; }
+
+.tree-lineage { transform-box: fill-box; transform-origin: center; }
+.tree-lineage path { vector-effect: non-scaling-stroke; }
+.tree-lineage-aura { pointer-events: none; }
+.tree-lineage-branch { transition: stroke-width .2s ease, opacity .2s ease; }
+.tree-lineage-current {
+  pointer-events: none;
+  stroke-dasharray: 7 93;
+  stroke-linecap: round;
+  animation: tree-current-flow 2.35s linear infinite;
+  filter: drop-shadow(0 0 3px rgba(197, 255, 255, .9));
+}
+.tree-lineage-node-halo { animation: tree-node-breathe 3s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+.tree-lineage image { opacity: .92; }
+.tree-lineage text { font-family: var(--font); text-transform: uppercase; }
+.tree-lineage:hover .tree-lineage-branch,
+.tree-lineage:focus .tree-lineage-branch { stroke-width: 4.2; }
+.tree-lineage:focus { outline: none; }
+
+.tree-ancestor-halo { animation: tree-core-pulse 4.2s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+.tree-ancestor-orbit { stroke: rgba(132, 222, 255, .34); stroke-width: 1; stroke-dasharray: 2 7; transform-box: fill-box; transform-origin: center; }
+.tree-ancestor-orbit.orbit-one { animation: tree-orbit-spin 17s linear infinite; }
+.tree-ancestor-orbit.orbit-two { animation: tree-orbit-spin-reverse 21s linear infinite; }
+.tree-ancestor-shell { stroke: rgba(158, 234, 255, .78); stroke-width: 1.2; }
+.tree-ancestor-shine { stroke: rgba(230, 255, 255, .78); stroke-width: 2.3; stroke-linecap: round; filter: drop-shadow(0 0 5px #85e9ff); }
+
+.tree-overview-card {
+  left: 94px;
+  width: 218px;
+  bottom: 74px;
+  padding: 17px 18px;
+  border: 0;
+  border-left: 1px solid rgba(87, 185, 211, .3);
+  border-radius: 0 10px 10px 0;
+  background: linear-gradient(90deg, rgba(3, 20, 30, .76), rgba(3, 20, 30, .28));
+  backdrop-filter: blur(8px);
+  box-shadow: 15px 22px 50px rgba(0, 0, 0, .18);
+  animation: tree-panel-arrive .55s .35s ease-out backwards;
+}
+
+.tree-overview-card > b,
+.tree-lineage-head b,
+.tree-milestones > b { color: #67d6f3; font-weight: 400; font-size: 8px; letter-spacing: 1.8px; }
+.tree-overview-grid strong,
+.tree-overview-big strong { font-weight: 200; font-size: 25px; }
+.tree-overview-grid span,
+.tree-overview-big span { color: rgba(170, 194, 206, .72); font-size: 8px; }
+
+.tree-lineage-card {
+  top: 84px;
+  right: 18px;
+  width: 258px;
+  bottom: 66px;
+  padding: 18px;
+  border: 0;
+  border-left: 1px solid rgba(99, 197, 233, .28);
+  border-radius: 12px 0 0 12px;
+  background: linear-gradient(145deg, rgba(3, 27, 40, .76), rgba(1, 11, 19, .84));
+  box-shadow: -25px 25px 65px rgba(0, 0, 0, .24);
+  backdrop-filter: blur(9px);
+  animation: tree-panel-arrive .58s .3s ease-out backwards;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(91, 184, 210, .32) transparent;
+}
+.tree-lineage-card::-webkit-scrollbar { width: 4px; }
+.tree-lineage-card::-webkit-scrollbar-track { background: transparent; }
+.tree-lineage-card::-webkit-scrollbar-thumb { border-radius: 4px; background: rgba(91, 184, 210, .28); }
+.tree-lineage-portrait { height: 118px; background: radial-gradient(circle, rgba(49, 137, 165, .18), transparent 68%); }
+.tree-lineage-portrait img { width: 100%; height: 100%; object-fit: contain; }
+.tree-lineage-card h2 { font-size: 21px; font-weight: 300; }
+.tree-row { border-color: rgba(191, 219, 243, .07); }
+.tree-row span { color: rgba(174, 197, 209, .72); }
+.tree-row b { color: #e0f4fc; }
+.tree-lineage-actions button { border-color: rgba(93, 188, 213, .28); border-radius: 999px; font-size: 8px; }
+.tree-lineage-actions button.primary { color: #e4f7ff; border: 1px solid rgba(105, 212, 244, .7); background: linear-gradient(100deg, rgba(21, 89, 120, .58), rgba(10, 43, 62, .5)); }
+.tree-lineage-actions button:disabled { opacity: .4; cursor: not-allowed; }
+.tree-lineage-actions button[aria-pressed=true] { border-color: #ffc977; }
+.tree-milestones { border-color: rgba(160, 190, 255, .08); }
+.tree-milestone-row { font-size: 9px; }
+.tree-quote { color: rgba(201, 222, 232, .78); font: italic 13px/1.6 Georgia, serif; }
+
+.tree-galaxy.is-sparse .tree-heading h1 { font-size: clamp(28px, 2.8vw, 44px); }
+.tree-galaxy.is-sparse .tree-radial-help { color: rgba(116, 205, 229, .8); }
+
+@keyframes tree-galaxy-arrive { from { opacity: 0; } to { opacity: 1; } }
+@keyframes tree-veil-arrive { from { opacity: 0; } to { opacity: 1; } }
+@keyframes tree-canvas-arrive { from { opacity: 0; transform: scale(.91); filter: blur(9px); } to { opacity: 1; transform: scale(1); filter: blur(0); } }
+@keyframes tree-panel-arrive { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes tree-current-flow { from { stroke-dashoffset: 100; } to { stroke-dashoffset: 0; } }
+@keyframes tree-node-breathe { 50% { transform: scale(1.28); opacity: .55; } }
+@keyframes tree-core-pulse { 50% { transform: scale(1.13); opacity: .68; } }
+@keyframes tree-orbit-spin { to { transform: rotate(360deg); } }
+@keyframes tree-orbit-spin-reverse { from { transform: rotate(28deg); } to { transform: rotate(-332deg); } }
+
+@media (min-width:1500px) {
+  .tree-radial-canvas { left: 276px; right: 322px; }
+  .tree-lineage-card { width: 302px; }
+  .tree-overview-card { width: 232px; }
+}
+
+@media (max-width:1000px) {
+  .tree-radial-canvas { left: 82px; right: 236px; top: 132px; }
+  .tree-heading { width: auto; }
+  .tree-legend { flex-direction: row; gap: 10px; }
+  .tree-legend li { font-size: 7px; }
+  .tree-reset { display: none; }
+  .tree-lineage-card { width: 222px; top: 176px; }
+  .tree-overview-card { display: none; }
+}
+
+@media (max-width:680px) {
+  .tree-galaxy { overflow: auto; }
+  .tree-heading { left: 68px; top: 70px; }
+  .tree-heading h1 { font-size: 18px; }
+  .tree-heading p { font-size: 6px; }
+  .tree-legend { gap: 7px; }
+  .tree-legend li { font-size: 6px; }
+  .tree-radial-canvas { position: relative; left: 60px; right: auto; top: 150px; bottom: auto; width: calc(100% - 68px); height: 340px; }
+  .tree-lineage-card { position: relative; left: 60px; right: auto; top: 175px; bottom: auto; width: calc(100% - 70px); margin-bottom: 300px; }
+  .tree-close { top: 65px; }
+  .tree-radial-help { white-space: normal; text-align: center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tree-lineage-current,
+  .tree-lineage-node-halo,
+  .tree-ancestor-halo,
+  .tree-ancestor-orbit { animation: none; }
+}
