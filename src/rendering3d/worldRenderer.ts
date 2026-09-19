@@ -32,7 +32,9 @@ export class WorldRenderer3D {
   constructor(canvas: HTMLCanvasElement, worldSize: number) {
     this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
     this.renderer.shadowMap.enabled = true;
-    this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    // PCFSoftShadowMap was removed in current Three.js; PCFShadowMap keeps soft filtered
+    // world shadows without emitting a warning on every renderer construction.
+    this.renderer.shadowMap.type = THREE.PCFShadowMap;
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
     this.renderer.toneMappingExposure = 1.15;
     this.renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
