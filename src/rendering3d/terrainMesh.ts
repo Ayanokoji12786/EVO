@@ -45,6 +45,9 @@ export class TerrainMesh {
   private textureSource = new TerrainTexture();
   private builtForResolution = -1;
   private segments = 192;
+  private godStrength = { value: 0 };
+  private godTime = { value: 0 };
+  private atmosphereMaterial: THREE.MeshBasicMaterial;
 
   constructor() {
     this.geometry = new THREE.PlaneGeometry(1, 1, this.segments, this.segments);
@@ -63,7 +66,9 @@ export class TerrainMesh {
     material.onBeforeCompile = (shader) => {
       shader.uniforms.surfaceDetail = { value: detail };
       shader.uniforms.worldAtlas = { value: this.atlas };
-      shader.fragmentShader = 'uniform sampler2D surfaceDetail;\nuniform sampler2D worldAtlas;\n' + shader.fragmentShader;
+      shader.uniforms.godStrength = this.godStrength;
+      shader.uniforms.godTime = this.godTime;
+      shader.fragmentShader = 'uniform sampler2D surfaceDetail;\nuniform sampler2D worldAtlas;\nuniform float godStrength;\nuniform float godTime;\n' + shader.fragmentShader;
       shader.fragmentShader = shader.fragmentShader.replace('#include <map_fragment>', `
         #include <map_fragment>
         // The simulation's grid still owns every biome, while this cinematic atlas supplies
@@ -72,6 +77,17 @@ export class TerrainMesh {
         diffuseColor.rgb = mix(atlas, diffuseColor.rgb, 0.30);
         vec3 grain = texture2D(surfaceDetail, vMapUv * 32.0).rgb;
         diffuseColor.rgb *= mix(vec3(0.72), vec3(1.3), grain);
+        // God Mode is projected into the terrain material itself, so its intervention
+        // lattice bends with the same relief as mountains, shores and valleys.
+        vec2 gridCell = abs(fract(vMapUv * 30.0) - 0.5);
+        float gridLine = smoothstep(0.465, 0.5, max(gridCell.x, gridCell.y));
+        float radialWave = pow(0.5 + 0.5 * sin(length(vMapUv - vec2(0.5)) * 92.0 - godTime * 1.35), 10.0);
+        float luminance = dot(diffuseColor.rgb, vec3(0.299, 0.587, 0.114));
+        vec3 divineBase = mix(vec3(luminance * 0.42), diffuseColor.rgb, 0.42);
+        divineBase = mix(divineBase, vec3(0.19, 0.095, 0.30), 0.20);
+        diffuseColor.rgb = mix(diffuseColor.rgb, divineBase, godStrength * 0.72);
+        diffuseColor.rgb += gridLine * vec3(0.36, 0.10, 0.62) * godStrength * 0.55;
+        diffuseColor.rgb += radialWave * vec3(0.72, 0.31, 0.09) * godStrength * 0.20;
         // Present the world as a bounded planet, not an endless square simulation board.
         if (length(vMapUv - vec2(0.5)) > 0.5) discard;
       `);
@@ -99,14 +115,15 @@ export class TerrainMesh {
     // A quiet atmospheric rim gives the disc a physical edge at the furthest camera view.
     const atmosphereGeo = new THREE.RingGeometry(0.502, 0.522, 192);
     atmosphereGeo.rotateX(-Math.PI / 2);
-    this.atmosphereMesh = new THREE.Mesh(atmosphereGeo, new THREE.MeshBasicMaterial({
+    this.atmosphereMaterial = new THREE.MeshBasicMaterial({
       color: 0x76d8ff,
       transparent: true,
       opacity: 0.42,
       depthWrite: false,
       blending: THREE.AdditiveBlending,
       side: THREE.DoubleSide,
-    }));
+    });
+    this.atmosphereMesh = new THREE.Mesh(atmosphereGeo, this.atmosphereMaterial);
   }
 
   invalidate() {
@@ -155,6 +172,19 @@ export class TerrainMesh {
   animateWater(timeSeconds: number) {
     const mat = this.waterMesh.material as THREE.MeshPhysicalMaterial;
     mat.opacity = 0.78 + Math.sin(timeSeconds * 0.6) * 0.03;
+  }
+
+  setGodMode(active: boolean, timeSeconds: number) {
+    const target = active ? 1 : 0;
+    this.godStrength.value += (target - this.godStrength.value) * .075;
+    this.godTime.value = timeSeconds;
+    const strength = this.godStrength.value;
+    this.atmosphereMaterial.color.setRGB(
+      .46 + strength * .27,
+      .85 - strength * .52,
+      1,
+    );
+    this.atmosphereMaterial.opacity = .42 + strength * .32;
   }
 }
 

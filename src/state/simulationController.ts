@@ -173,6 +173,7 @@ export class SimulationController {
       ancestryDescendantIds: ancestryRoot !== null ? allDescendants(this.world, ancestryRoot) : null,
       overlays: store.overlays,
       evolutionVision: store.evolutionVision,
+      godMode: store.godMode,
     });
   }
 

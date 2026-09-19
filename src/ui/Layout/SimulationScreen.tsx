@@ -13,7 +13,7 @@ import { TimeMachine } from '../TimeMachine/TimeMachine';
 import { ExperimentPanel } from '../Experiments/ExperimentPanel';
 import { About } from '../About/About';
 import { GenerationsLater } from '../Cinematic/GenerationsLater';
-import { useSimStore, type PendingGodAction } from '../../state/simStore';
+import { useSimStore, type PendingGodAction, type SpeedSetting } from '../../state/simStore';
 import { WorldBootSequence } from '../Opening/WorldBootSequence';
 import type { WorldBootMode } from '../Opening/worldBoot';
 import { seasonalFactor } from '../../environment/climate';
@@ -50,7 +50,8 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
   const hudIdleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [introComplete, setIntroComplete] = useState(false);
   const restoreSpeed = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const revealRaf = useRef<number | null>(null);
+  const godCameraPose = useRef<{ x: number; y: number; zoom: number } | null>(null);
+  const godEntrySpeed = useRef<SpeedSetting>(1);
   const introFinished = useRef(false);
   const setWorldConfig = useSimStore((s) => s.setWorldConfig);
   const godMode = useSimStore((s) => s.godMode);
@@ -78,7 +79,6 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
 
   useEffect(() => () => {
     if (restoreSpeed.current) clearTimeout(restoreSpeed.current);
-    if (revealRaf.current !== null) cancelAnimationFrame(revealRaf.current);
     if (divineToastTimer.current) clearTimeout(divineToastTimer.current);
     if (hudIdleTimer.current) clearTimeout(hudIdleTimer.current);
   }, []);
@@ -121,6 +121,21 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
 
   if (!controller) return null;
 
+  const exitGodMode = (restoreCamera = true) => {
+    if (restoreSpeed.current) clearTimeout(restoreSpeed.current);
+    restoreSpeed.current = null;
+    setGodArrival(false);
+    setGodMode(false);
+    setPending(null);
+    setRadialAnchor(null);
+    setGodInitialLayer(null);
+    if (restoreCamera && godCameraPose.current) {
+      const pose = godCameraPose.current;
+      controller.focusPoint(pose.x, pose.y, pose.zoom, 720);
+    }
+    godCameraPose.current = null;
+  };
+
   const enterGodWheel = (tool: RailTool, initialLayer: GodCategory | null) => {
     setModal(null);
     setPending(null);
@@ -128,13 +143,16 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
     setGodInitialLayer(initialLayer);
     setRadialAnchor(GOD_WHEEL_ANCHOR);
     if (!godMode) {
+      godCameraPose.current = { x: controller.camera.x, y: controller.camera.y, zoom: controller.camera.zoom };
+      godEntrySpeed.current = speed;
       setGodMode(true);
       setGodArrival(true);
       setSpeed(1);
-      controller.zoom(0.88);
+      controller.focusPoint(controller.camera.x, controller.camera.y, controller.camera.zoom * .91, 680);
       restoreSpeed.current = setTimeout(() => {
         setGodArrival(false);
-        setSpeed(speed);
+        setSpeed(godEntrySpeed.current);
+        restoreSpeed.current = null;
       }, 700);
     }
   };
@@ -149,6 +167,7 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
   // be the only floating panel on top of it — opening one always closes a dangling God
   // wheel first, so the two can never render stacked on top of each other.
   const openModal = (m: Exclude<Modal, null>) => {
+    if (godMode) exitGodMode(true);
     setPending(null);
     setModal(m);
     setRadialAnchor(null);
@@ -157,13 +176,8 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
 
   const handleSelectTool = (tool: RailTool) => {
     if (tool === 'world') {
-      if (restoreSpeed.current) clearTimeout(restoreSpeed.current);
-      setGodArrival(false);
       setActiveRailTool('world');
-      setGodMode(false);
-      setPending(null);
-      setRadialAnchor(null);
-      setGodInitialLayer(null);
+      exitGodMode(true);
       setModal(null);
       return;
     }
@@ -171,6 +185,7 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
     if (tool === 'analytics') { setActiveRailTool('analytics'); openModal('analytics'); return; }
     if (tool === 'evolution') { setActiveRailTool('evolution'); openModal('tree'); return; }
     if (tool === 'life') {
+      if (godMode) exitGodMode(true);
       setModal(null);
       setRadialAnchor(null);
       setPending(null);
@@ -220,7 +235,7 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
           onOpenAbout={() => openModal('about')}
           onOpenCinematic={() => openModal('cinematic')}
           onOpenInsights={() => openModal('insights')}
-          onExit={onExit}
+          onExit={() => { exitGodMode(false); onExit(); }}
         />
         {!inspector && modal === null && <WorldCard seed={seedDisplay} climate={config.climate} year={worldYear} tempC={worldTempC} />}
         <SimulationRail activeTool={activeRailTool} onSelectTool={handleSelectTool} />

@@ -12,6 +12,7 @@ export interface Render3DOptions {
   ancestryDescendantIds: Set<number> | null;
   overlays: { species: boolean; genetics: boolean; energy: boolean; vision: boolean };
   evolutionVision: boolean;
+  godMode: boolean;
 }
 
 /** Owns the whole Three.js scene graph for one world and draws it each frame. This is the
@@ -121,6 +122,7 @@ export class WorldRenderer3D {
     this.terrain.ensure(world.terrain);
     this.vegetation.ensure(world.terrain);
     this.terrain.animateWater(timeSeconds);
+    this.terrain.setGodMode(options.godMode, timeSeconds);
     updateLighting(this.rig, world.climate, world.config.worldSize, this.renderer);
 
     this.creatures.update(world, {

@@ -48,6 +48,49 @@ body {
   --accent-glow: rgba(197, 131, 255, 0.5);
 }
 
+.world-canvas-stage canvas {
+  transition: filter 680ms cubic-bezier(.16,.8,.2,1);
+}
+
+[data-godmode="true"] .world-canvas-stage canvas {
+  filter: saturate(.58) brightness(.64) contrast(1.14) hue-rotate(5deg);
+}
+
+[data-godmode="true"] .world-canvas-stage::before {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  inset: -32%;
+  pointer-events: none;
+  opacity: .34;
+  background:
+    conic-gradient(from 8deg at 50% 50%, transparent 0 8%, rgba(158, 95, 255, .13) 9% 11%, transparent 12% 26%, rgba(255, 176, 86, .09) 27% 28%, transparent 30% 46%, rgba(142, 85, 241, .12) 47% 50%, transparent 52% 100%);
+  mix-blend-mode: screen;
+  animation: divine-rays 24s linear infinite;
+}
+
+[data-godmode="true"] .world-canvas-stage::after {
+  z-index: 3;
+  background:
+    radial-gradient(circle at 50% 49%, transparent 0 21%, rgba(116, 63, 184, .07) 32%, transparent 48%),
+    radial-gradient(ellipse at 50% 46%, transparent 22%, rgba(13, 7, 27, .22) 58%, rgba(2, 1, 9, .78) 100%),
+    linear-gradient(180deg, rgba(26, 8, 43, .34), transparent 22%, transparent 72%, rgba(25, 8, 43, .48));
+  box-shadow: inset 0 0 145px rgba(131, 71, 214, .24), inset 0 0 32px rgba(255, 169, 80, .08);
+  transition: background 620ms ease, box-shadow 620ms ease;
+}
+
+[data-godmode="true"] .sim-topbar {
+  background: linear-gradient(180deg, rgba(18, 7, 31, .75), rgba(11, 8, 23, .34));
+  border-bottom-color: rgba(200, 132, 255, .24);
+}
+[data-godmode="true"] .sim-rail {
+  background: linear-gradient(180deg, rgba(19, 8, 34, .66), rgba(6, 6, 18, .42));
+}
+[data-godmode="true"] .sim-rail-btn.is-active .sim-rail-icon { color: #d6a8ff; }
+[data-godmode="true"] .milestone-timeline { border-top-color: rgba(197, 131, 255, .2); }
+
+@keyframes divine-rays { to { transform: rotate(360deg); } }
+
 /* God Mode arrives as a system-level event. The world briefly retreats beneath a dark,
    scanning veil before the cursor-bound command wheel is available. */
 .god-arrival-active canvas { animation: divine-world-recede 700ms cubic-bezier(.16,.8,.2,1) both; }
