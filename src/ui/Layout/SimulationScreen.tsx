@@ -44,7 +44,9 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
   const [activeRailTool, setActiveRailTool] = useState<RailTool>('world');
   const [impact, setImpact] = useState<{ before: number; after: number; eliminated: number; percent: number; extinctSpecies: number; survivors: number } | null>(null);
   const [divineToast, setDivineToast] = useState<string | null>(null);
+  const [hudIdle, setHudIdle] = useState(false);
   const divineToastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hudIdleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [introComplete, setIntroComplete] = useState(false);
   const restoreSpeed = useRef<ReturnType<typeof setTimeout> | null>(null);
   const revealRaf = useRef<number | null>(null);
@@ -77,7 +79,25 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
     if (restoreSpeed.current) clearTimeout(restoreSpeed.current);
     if (revealRaf.current !== null) cancelAnimationFrame(revealRaf.current);
     if (divineToastTimer.current) clearTimeout(divineToastTimer.current);
+    if (hudIdleTimer.current) clearTimeout(hudIdleTimer.current);
   }, []);
+
+  const wakeHud = useCallback(() => {
+    setHudIdle(false);
+    if (hudIdleTimer.current) clearTimeout(hudIdleTimer.current);
+    hudIdleTimer.current = null;
+    if (modal === null && !inspector && !godMode) {
+      hudIdleTimer.current = setTimeout(() => setHudIdle(true), 3200);
+    }
+  }, [godMode, inspector, modal]);
+
+  useEffect(() => {
+    wakeHud();
+    return () => {
+      if (hudIdleTimer.current) clearTimeout(hudIdleTimer.current);
+      hudIdleTimer.current = null;
+    };
+  }, [wakeHud]);
 
   const finishIntroduction = useCallback(() => {
     if (!controller) return;
@@ -186,9 +206,21 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
   const worldTempC = Math.round(15 + controller.world.climate.baseTemperature * 12 + (seasonPct - 0.5) * 12);
 
   return (
-    <div className={godArrival ? 'god-arrival-active' : ''} style={{ position: 'absolute', inset: 0 }} data-godmode={godMode ? 'true' : 'false'}>
+    <div
+      className={godArrival ? 'god-arrival-active' : ''}
+      style={{ position: 'absolute', inset: 0 }}
+      data-godmode={godMode ? 'true' : 'false'}
+      onPointerMove={wakeHud}
+      onPointerDown={wakeHud}
+      onWheel={wakeHud}
+      onTouchStart={wakeHud}
+      onKeyDown={wakeHud}
+    >
       <WorldCanvas controller={controller} onMeteorImpact={(report) => { setImpact(report); window.setTimeout(() => setImpact(null), 4300); }} />
-      {introComplete && <div className="simulation-ui is-visible">
+      {introComplete && <div
+        className={`simulation-ui is-visible${hudIdle ? ' is-hud-idle' : ''}${godMode ? ' mode-god' : ' mode-world'}`}
+        onFocusCapture={wakeHud}
+      >
         <TopBar
           onOpenTree={() => { setActiveRailTool('evolution'); openModal('tree'); }}
           onOpenTimeMachine={() => openModal('time')}

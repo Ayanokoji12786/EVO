@@ -621,7 +621,7 @@ select, input[type="text"], input[type="number"] {
 .simulation-ui.is-visible .sim-rail,
 .simulation-ui.is-visible .compass-biome,
 .simulation-ui.is-visible .milestone-timeline {
-  animation: simulation-ui-reveal .6s cubic-bezier(.16,.8,.2,1) both;
+  animation: simulation-ui-reveal .6s cubic-bezier(.16,.8,.2,1) backwards;
 }
 .simulation-ui.is-visible .sim-topbar { animation-delay: .05s; }
 .simulation-ui.is-visible .world-card { animation-delay: .2s; }
