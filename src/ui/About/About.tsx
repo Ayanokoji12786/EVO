@@ -1,155 +1,32 @@
+import { useState } from 'react';
 import { Overlay } from '../TimeMachine/TimeMachine';
+import worldAtlas from '../../assets/world-atlas.png';
+import specimen from '../../assets/specimen-portrait.png';
+import { ReferenceIcon } from '../shared/ReferenceIcon';
+import './About.css';
 
-export function About({ onClose }: { onClose: () => void }) {
-  return (
-    <Overlay title="ℹ About This Simulation" onClose={onClose}>
-      <div className="scroll-thin" style={{ padding: 24, overflowY: 'auto', maxWidth: 760, margin: '0 auto', lineHeight: 1.6, fontSize: 13 }}>
-        <p>
-          EVO is an artificial-life sandbox: organisms carry a genome of ~20 numeric traits plus a small evolvable
-          neural network, sense only their local surroundings, and act, eat, fight, and reproduce accordingly.
-          Nothing here calculates "fitness" and picks winners — whatever combination of traits leaves more
-          surviving, reproducing descendants simply becomes more common over time. That is the entire mechanism.
-        </p>
+type Tab='model'|'limits'|'science';
+const PAPERS=[
+  ['Lenski et al. · 2003','The evolutionary origin of complex features','Complex traits and stepping-stone evolution'],
+  ['Lindsey et al. · 2013','Evolutionary rescue from extinction is contingent on a lower rate of environmental change','Adaptation depends on both magnitude and speed of change'],
+  ['Franks, Sim & Weis · 2007','Rapid evolution of flowering time by an annual plant in response to a climate fluctuation','Heritable seasonal timing'],
+  ['Canino-Koning, Wiser & Ofria · 2019','Fluctuating environments select for short-term phenotypic variation','Evolving phenotypic plasticity'],
+  ['Stanley & Miikkulainen · 2002','Evolving neural networks through augmenting topologies','Mutable behavioural network connections'],
+  ['Elena et al. · 2007','Effects of population size and mutation rate on the evolution of mutational robustness','Population size, mutation and standing variation'],
+];
 
-        <h3>What it demonstrates</h3>
-        <ul>
-          <li>Heritable variation, mutation, and selection acting on a population without a designed target.</li>
-          <li>Trade-offs (size vs. upkeep, speed vs. energy cost, litter size vs. offspring energy) that make no
-            single genome universally optimal.</li>
-          <li>Genetic drift and lineage divergence leading to automatically detected speciation.</li>
-          <li>How environmental pressure (scarcity, climate, predation) reshapes a population's trait
-            distribution over generations — without ever telling organisms what to become.</li>
-        </ul>
-
-        <h3>What is simplified</h3>
-        <ul>
-          <li><strong>Speciation</strong> is approximated by genetic distance from a lineage's founder genome, not
-            true reproductive isolation — it will not catch two separated sub-populations that happen to
-            converge on similar traits.</li>
-          <li><strong>Reproduction</strong> is currently asexual with mutation only; the genome and inheritance
-            code is structured so sexual recombination could be added without changing the rest of the engine.</li>
-          <li><strong>The neural "brain"</strong> is a single hidden-layer network with a fixed, small set of
-            senses and actions — real nervous systems are vastly richer.</li>
-          <li><strong>Time Machine snapshots</strong> store a capped sample of the population (not every
-            organism) to keep memory bounded, so scrubbing history shows a representative sample rather than a
-            byte-perfect replay.</li>
-          <li><strong>Combat</strong> resolves as a single probabilistic roll from relative size/aggression/diet,
-            not a physical simulation.</li>
-        </ul>
-
-        <h3>Assumptions the model makes</h3>
-        <ul>
-          <li>Energy is the universal currency: movement, vision, camouflage, temperature stress, and
-            reproduction all cost it, and it is the only thing that kills an organism besides old age, disease,
-            or violence.</li>
-          <li>Mutation rate, mutation strength, and rare "jump" mutations are themselves genome parameters (or
-            Divine Genetics settings), so the pace of evolution is emergent, not fixed.</li>
-          <li>All world seeds are deterministic given identical settings and identical player intervention — but
-            once you use God Mode, your own actions become part of the "seed" of what happens next.</li>
-        </ul>
-
-        <h3>Why runs differ</h3>
-        <p>
-          Two worlds with the same seed and no player intervention play out identically. Any divergence you see
-          between runs comes from a setting you changed, a God Mode action you took, or simply because you
-          started a different seed — the simulation itself has no hidden randomness once a seed is fixed. This
-          is also why the Experiment Mode's "Split Timeline" holds the seed constant and changes exactly one
-          variable: it isolates that variable's effect from ordinary run-to-run noise.
-        </p>
-
-        <h3>Scientific basis</h3>
-        <p>
-          A few mechanics are direct, but deliberately scoped, nods to specific findings in the evolutionary-
-          biology and digital-evolution literature. None of these are claimed as faithful reproductions of the
-          full model in the cited paper — each is a small, testable mechanic inspired by the paper's core idea.
-        </p>
-        <ul>
-          <li>
-            <strong>Connection pruning/restoration in the neural "brain"</strong> (Stanley &amp; Miikkulainen, 2002,
-            <em> Evolving Neural Networks through Augmenting Topologies</em>): NEAT evolves both weights and
-            network topology, starting minimal and complexifying over generations. EVO's brain keeps a fixed-size
-            weight array (not a growable graph with historical markings/crossover like real NEAT) but a
-            structural mutation can silence a connection to exactly zero or reactivate a silenced one — effective
-            connectivity still evolves, just within a bounded array rather than a dynamic one.
-          </li>
-          <li>
-            <strong>The <code>wingDevelopment</code> gene</strong> (Lenski, Ofria, Pennock &amp; Adami, 2003,
-            <em> The Evolutionary Origin of Complex Features</em>): that paper evolved complex digital-organism
-            logic functions through neutral/near-neutral stepping stones rather than direct selection the whole
-            way. Here, an unlockable "flight" trait provides zero benefit — pure upkeep cost — below a threshold,
-            so it can only accumulate via drift/linkage until a lineage crosses into the payoff region. It is a
-            single-trait illustration of the idea, not a reproduction of Avida's logic-gate evolution.
-          </li>
-          <li>
-            <strong>Active dispersal</strong> (Bocedi et al., 2014, <em>RangeShifter</em>; Landguth et al., 2017,
-            <em> CDMetaPOP</em>): both are full individual-based, spatially-explicit landscape-genetics platforms
-            modeling dispersal kernels and gene flow across habitat patches. EVO takes one idea from that family —
-            a heritable <code>dispersalTendency</code> gene that occasionally triggers a long-range jump instead
-            of local wandering — without patch-based connectivity graphs or explicit gene-flow tracking between
-            named populations.
-          </li>
-          <li>
-            <strong>Phenotypic plasticity</strong> (Canino-Koning, Wiser &amp; Ofria, 2019,
-            <em> Fluctuating Environments Select for Short-Term Phenotypic Variation</em>; see also the
-            evolvability-under-environmental-change literature): a heritable <code>plasticity</code> gene lets an
-            organism's acclimated temperature preference drift toward locally experienced conditions within its
-            own lifetime, at a rate the gene controls. The acclimated state itself is never inherited — only the
-            capacity to acclimate is.
-          </li>
-          <li>
-            <strong>Rate of environmental change</strong> (Lindsey, Fields, Nocedal, Brooks &amp; Kussell, 2013,
-            <em> Evolutionary rescue from extinction is contingent on a lower rate of environmental change</em>,
-            Nature): survival there depended on how <em>fast</em> conditions shifted, not just how far — slow
-            drift left time to adapt, a sudden jump outran it. EVO tracks an exponential moving average of the
-            world's actual per-tick temperature and rainfall change and charges every organism an extra energy
-            cost proportional to that rate, buffered by its <code>plasticity</code> gene. The same total climate
-            swing costs far more if God Mode inflicts it in one tick than if it drifts there naturally over many
-            generations — this is why a Dark Age now visibly crashes population within seconds where the
-            same net cooling applied gradually would barely register.
-          </li>
-          <li>
-            <strong>Seasonal timing</strong> (Franks, Sim &amp; Weis, 2007, <em>Rapid evolution of flowering
-            time by an annual plant in response to a climate fluctuation</em>, PNAS): that study measured a wild
-            population's reproductive timing shifting within a handful of generations to track a changed growing
-            season. Every organism in EVO carries a heritable <code>seasonalTiming</code> gene — its preferred
-            phase of the year to reproduce — and attempting to reproduce far from that phase risks the attempt
-            failing outright. Nothing forces which phase wins; it is whichever timing the world's actual
-            food/climate cycle happens to reward.
-          </li>
-          <li>
-            <strong>Scavenging / carcasses</strong> (loosely motivated by the ecological-network-fragility
-            literature, e.g. Sanders et al., 2016, <em>Environmental Change Makes Robust Ecological Networks
-            Fragile</em>): every death leaves a body-mass-sized, decaying food item any organism can eat (more
-            efficiently if its diet leans carnivorous). This is a minimal decomposer/scavenger trophic link, not a
-            modeled multi-species interaction network — EVO does not build or analyze an explicit food web graph.
-          </li>
-          <li>
-            <strong>Population size, mutation rate &amp; standing genetic variation</strong> (Elena, Wilke, Ofria
-            &amp; Lenski, 2007, <em>Effects of Population Size and Mutation Rate on the Evolution of Mutational
-            Robustness</em>; Misevic et al., <em>The Effects of Low-Impact Mutations in Digital Organisms</em>;
-            Frank et al., 2021, <em>An Interplay of Resource Availability, Population Size and Mutation Rate</em>):
-            these papers found that smaller populations and higher mutation rates tend to erode standing genetic
-            variation and mutational robustness, while abundant resources and larger populations sustain more of
-            it. EVO exposes a live per-trait standard-deviation stat so you can watch this relationship for
-            yourself using God Mode's population/mutation-rate/food controls — the simulation does not hard-code
-            the relationship, it just gives you the dial and the readout.
-          </li>
-        </ul>
-        <p style={{ color: 'var(--text-dim)', fontSize: 12 }}>
-          Not modeled: Lenski/Avida-style evolvable logic-gate tasks, full NEAT crossover with historical gene
-          markings, RangeShifter/CDMetaPOP's explicit habitat-patch connectivity and gene-flow statistics, and any
-          explicit food-web/interaction-network graph or fragility analysis. These are genuinely different (and
-          in several cases much larger) pieces of software; EVO borrows one mechanic or one measurable
-          relationship from each rather than reimplementing the paper. Also not modeled, despite being adjacent
-          to mechanics above: a distinct "environmental memory" that outlasts the rate-shock EMA (Abreu, Mathur
-          &amp; Petrov, 2024, <em>Environmental memory alters the fitness effects of adaptive mutations in
-          fluctuating environments</em>); priming from a lineage's past stress history (Bell &amp; Gonzalez, 2012,
-          <em> Evolutionary rescue and adaptation to abrupt environmental change depends upon the history of
-          stress</em>); and explicit antagonistic-pleiotropy trade-off matrices between traits (Buskirk et al.,
-          2020, <em>Antagonistic pleiotropy conceals molecular adaptations in changing environments</em>) beyond
-          the trade-offs that already fall out of shared energy upkeep.
-        </p>
-      </div>
-    </Overlay>
-  );
+export function About({onClose}:{onClose:()=>void}) {
+  const [tab,setTab]=useState<Tab>('model');
+  return <Overlay title="ABOUT EVO" onClose={onClose}>
+    <p className="reference-subtitle">AN ARTIFICIAL-LIFE LABORATORY · LIFE IN MOTION.</p>
+    <nav className="reference-tabs about-tabs"><button className={tab==='model'?'is-active':''} onClick={()=>setTab('model')}>The Model</button><button className={tab==='limits'?'is-active':''} onClick={()=>setTab('limits')}>What Is Simplified</button><button className={tab==='science'?'is-active':''} onClick={()=>setTab('science')}>Scientific Grounding</button></nav>
+    <div className="about-content scroll-thin">
+      <aside className="about-hero reference-card"><img src={tab==='limits'?specimen:worldAtlas} alt={tab==='limits'?'Illustrative specimen portrait':'Illustrative EVO world'} /><div><small>{tab==='limits'?'CONCEPT PORTRAIT':'A LIVING WORLD'}</small><h3>Life does not<br />follow a script.</h3><p>Organisms sense locally, spend energy, reproduce with mutation, and leave descendants. There is no prescribed evolutionary goal.</p></div></aside>
+      {tab==='model'&&<section className="about-main"><header><small>HOW EVO WORKS</small><h3>Selection emerges from survival.</h3><p>Every population change comes from simulated organisms acting under the same world rules.</p></header><div className="about-card-grid"><Info icon="evolution" title="HERITABLE GENOMES">More than twenty numeric traits and a compact neural network pass to offspring with mutation.</Info><Info icon="life" title="ENERGY & REPRODUCTION">Movement, sensing, temperature stress, combat and reproduction all draw from a shared energy budget.</Info><Info icon="predators" title="ECOLOGICAL INTERACTION">Diet, aggression, fear and scavenging create real herbivore, omnivore and predator pressures.</Info><Info icon="weather" title="A CHANGING WORLD">Rainfall, seasons, temperature, terrain and divine interventions reshape selection through time.</Info><Info icon="globe" title="DETERMINISTIC SEEDS">Identical seeds and settings reproduce the same history until the player intervenes.</Info><Info icon="analytics" title="RECORDED EVIDENCE">The timeline, analytics, experiments and insights read from the world’s actual retained history.</Info></div></section>}
+      {tab==='limits'&&<section className="about-main"><header><small>HONEST BOUNDARIES</small><h3>A model of evolution, not a replica of nature.</h3><p>EVO deliberately compresses biology so causes and trade-offs remain observable.</p></header><div className="about-limits"><Limit n="01" title="Asexual inheritance">Offspring currently inherit from one parent with mutation; sexual recombination is not simulated.</Limit><Limit n="02" title="Operational species">Speciation uses genetic distance from a founder, not demonstrated reproductive isolation.</Limit><Limit n="03" title="Compact nervous systems">Brains use a small fixed sensor/action network, not a biological nervous system.</Limit><Limit n="04" title="Sampled history">Time Machine locations retain a bounded population sample, not a frame-perfect historical replay.</Limit><Limit n="05" title="Stylized anatomy">The live 3D creatures encode size, diet and motion, while cinematic portraits remain clearly labelled concept artwork.</Limit><Limit n="06" title="Association is not cause">Analytics reports correlations and co-occurring events. Ask the Universe never treats them as proof of causation.</Limit></div></section>}
+      {tab==='science'&&<section className="about-main"><header><small>RESEARCH-INSPIRED MECHANICS</small><h3>Ideas translated into testable systems.</h3><p>These papers inspire scoped mechanics; EVO does not claim to reproduce each full experimental model.</p></header><div className="about-papers">{PAPERS.map(([authors,title,use])=><article key={title}><span>{authors}</span><h4>{title}</h4><p>{use}</p></article>)}</div><p className="reference-note">Full paper citations and the exact mechanic mappings remain documented in the project source. Simulation results are educational model outputs, not biological predictions.</p></section>}
+    </div>
+  </Overlay>;
 }
+function Info({icon,title,children}:{icon:string;title:string;children:React.ReactNode}) { return <article className="reference-card about-info"><ReferenceIcon kind={icon}/><div><h4>{title}</h4><p>{children}</p></div></article>; }
+function Limit({n,title,children}:{n:string;title:string;children:React.ReactNode}) { return <article><b>{n}</b><div><h4>{title}</h4><p>{children}</p></div></article>; }
