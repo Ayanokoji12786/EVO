@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from 'react';
+import type { PointerEvent as ReactPointerEvent } from 'react';
 import type { SimulationController } from '../../state/simulationController';
 import { geneticDistance } from '../../genetics/genome';
 import type { HistoryEvent, SpeciesRecord } from '../../simulation/types';
@@ -42,7 +43,16 @@ export function TreeOfLife({ controller, onClose }: { controller: SimulationCont
   const speciesSnapshot = useSimStore((state) => state.species);
   const events = useSimStore((state) => state.events);
   const stats = useSimStore((state) => state.stats);
-  const drag = useRef({ active: false, x: 0, y: 0 });
+  const drag = useRef({
+    pointerId: null as number | null,
+    pointerType: '',
+    dragging: false,
+    x: 0,
+    y: 0,
+    startX: 0,
+    startY: 0,
+  });
+  const suppressCanvasClick = useRef(false);
   const species = useMemo(
     () => {
       // The store snapshot is the reactive signal; the registry remains the source of
@@ -83,6 +93,78 @@ export function TreeOfLife({ controller, onClose }: { controller: SimulationCont
     setHighlightFamily(false);
   };
 
+  const beginCanvasDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (!event.isPrimary || (event.pointerType === 'mouse' && event.button !== 0)) return;
+    drag.current = {
+      pointerId: event.pointerId,
+      pointerType: event.pointerType,
+      dragging: false,
+      x: event.clientX,
+      y: event.clientY,
+      startX: event.clientX,
+      startY: event.clientY,
+    };
+    suppressCanvasClick.current = false;
+
+    // Mouse and pen do not receive implicit pointer capture consistently. Touch
+    // is captured once its intent is a canvas drag so a vertical swipe can still
+    // scroll the mobile page instead.
+    if (event.pointerType !== 'touch') event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const moveCanvasDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const current = drag.current;
+    if (current.pointerId !== event.pointerId) return;
+
+    const totalX = event.clientX - current.startX;
+    const totalY = event.clientY - current.startY;
+    if (!current.dragging) {
+      const threshold = current.pointerType === 'touch' ? 8 : 3;
+      if (Math.hypot(totalX, totalY) < threshold) return;
+
+      // On the stacked mobile layout, a clearly vertical gesture remains page
+      // scroll. Horizontal or diagonal intent becomes a captured tree pan.
+      const scrollHost = event.currentTarget.closest<HTMLElement>('.tree-galaxy');
+      const pageCanScroll = Boolean(scrollHost && scrollHost.scrollHeight > scrollHost.clientHeight + 1);
+      if (current.pointerType === 'touch' && pageCanScroll && Math.abs(totalY) > Math.abs(totalX) * 1.15) {
+        drag.current.pointerId = null;
+        if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+        return;
+      }
+
+      current.dragging = true;
+      if (!event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.setPointerCapture(event.pointerId);
+    }
+
+    if (event.cancelable) event.preventDefault();
+    const dx = event.clientX - current.x;
+    const dy = event.clientY - current.y;
+    current.x = event.clientX;
+    current.y = event.clientY;
+    setView((viewState) => ({ ...viewState, x: viewState.x + dx, y: viewState.y + dy }));
+  };
+
+  const endCanvasDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (drag.current.pointerId !== event.pointerId) return;
+    const wasDragging = drag.current.dragging;
+    drag.current.pointerId = null;
+    drag.current.dragging = false;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId);
+
+    // A completed pan must not also activate the lineage underneath its release
+    // point; a stationary tap continues through to the lineage click handlers.
+    if (wasDragging) {
+      suppressCanvasClick.current = true;
+      window.setTimeout(() => { suppressCanvasClick.current = false; }, 0);
+    }
+  };
+
+  const cancelCanvasDrag = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (drag.current.pointerId !== event.pointerId) return;
+    drag.current.pointerId = null;
+    drag.current.dragging = false;
+  };
+
   return <section className={`tree-galaxy${sparse ? ' is-sparse' : ''}`} aria-label="Tree of Life">
     <button className="tree-close" onClick={onClose} aria-label="Close Tree of Life">×</button>
 
@@ -100,15 +182,17 @@ export function TreeOfLife({ controller, onClose }: { controller: SimulationCont
 
     <div
       className="tree-radial-canvas"
-      onMouseDown={(event) => { drag.current = { active: true, x: event.clientX, y: event.clientY }; }}
-      onMouseMove={(event) => {
-        if (!drag.current.active) return;
-        const dx = event.clientX - drag.current.x; const dy = event.clientY - drag.current.y;
-        drag.current = { active: true, x: event.clientX, y: event.clientY };
-        setView((current) => ({ ...current, x: current.x + dx, y: current.y + dy }));
+      onPointerDown={beginCanvasDrag}
+      onPointerMove={moveCanvasDrag}
+      onPointerUp={endCanvasDrag}
+      onPointerCancel={cancelCanvasDrag}
+      onLostPointerCapture={cancelCanvasDrag}
+      onClickCapture={(event) => {
+        if (!suppressCanvasClick.current) return;
+        suppressCanvasClick.current = false;
+        event.preventDefault();
+        event.stopPropagation();
       }}
-      onMouseUp={() => { drag.current.active = false; }}
-      onMouseLeave={() => { drag.current.active = false; }}
       onWheel={(event) => setView((current) => ({ ...current, zoom: Math.max(.55, Math.min(2.8, current.zoom * (event.deltaY < 0 ? 1.1 : .9))) }))}
     >
       <svg viewBox="0 0 1010 720" role="img" aria-label="Radial phylogenetic tree showing living and extinct species">
@@ -139,7 +223,7 @@ export function TreeOfLife({ controller, onClose }: { controller: SimulationCont
           <text x="0" y="28" fill="#849faa" fontSize="9" textAnchor="middle">Gen 0</text>
         </g>
       </svg>
-      <p className="tree-radial-help">DRAG TO NAVIGATE · SCROLL TO ZOOM · SELECT A LINEAGE</p>
+      <p className="tree-radial-help">DRAG OR SWIPE TO NAVIGATE · SCROLL TO ZOOM · SELECT A LINEAGE</p>
     </div>
 
     <aside className="tree-overview-card">

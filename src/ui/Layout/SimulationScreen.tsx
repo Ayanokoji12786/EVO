@@ -122,7 +122,10 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
   if (!controller) return null;
 
   const exitGodMode = (restoreCamera = true) => {
-    if (restoreSpeed.current) clearTimeout(restoreSpeed.current);
+    if (restoreSpeed.current) {
+      clearTimeout(restoreSpeed.current);
+      setSpeed(godEntrySpeed.current);
+    }
     restoreSpeed.current = null;
     setGodArrival(false);
     setGodMode(false);
@@ -138,6 +141,10 @@ export function SimulationScreen({ config, onExit, bootMode = 'birth' }: { confi
 
   const enterGodWheel = (tool: RailTool, initialLayer: GodCategory | null) => {
     setModal(null);
+    // God Mode owns the entire interaction layer. Carrying a creature inspector into it
+    // creates two competing subjects (and fully obscures the controls on phones), so
+    // leave organism inspection cleanly before the divine camera treatment begins.
+    controller.select(null);
     setPending(null);
     setActiveRailTool(tool);
     setGodInitialLayer(initialLayer);
